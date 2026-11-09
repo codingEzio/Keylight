@@ -319,9 +319,8 @@ struct ThemeAtmosphere: View {
                 hill.closeSubpath()
                 context.fill(hill, with: .color(Color.blue.opacity(dark ? 0.12 : 0.055)))
             } else {
-                var arc = Path()
-                arc.addEllipse(in: CGRect(x: size.width - 260, y: size.height - 135, width: 310, height: 240))
-                context.stroke(arc, with: .color(ink.opacity(dark ? 0.10 : 0.045)), lineWidth: 1)
+                let glow = Gradient(colors: [ink.opacity(dark ? 0.045 : 0.018), .clear])
+                context.fill(Path(CGRect(origin: .zero, size: size)), with: .radialGradient(glow, center: CGPoint(x: size.width * 0.88, y: size.height * 0.82), startRadius: 0, endRadius: 160))
             }
         }.allowsHitTesting(false).accessibilityHidden(true)
     }
@@ -424,7 +423,13 @@ struct SearchView: View {
                 ThemeAtmosphere(theme: model.theme, dark: isDark)
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)).overlay(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18).stroke(nothing ? foreground.opacity(0.16) : cyber ? Color.red.opacity(0.45) : xp ? Color.blue.opacity(0.45) : .white.opacity(0.3), lineWidth: xp ? 2 : 1))
+        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18))
+        .overlay {
+            if cyber || nothing || xp {
+                RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)
+                    .strokeBorder(nothing ? foreground.opacity(isDark ? 0.16 : 0.10) : cyber ? Color.red.opacity(isDark ? 0.30 : 0.20) : Color.blue.opacity(isDark ? 0.38 : 0.25), lineWidth: 1)
+            }
+        }
         .onAppear { focus = true; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
