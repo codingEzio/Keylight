@@ -91,7 +91,7 @@ struct Entry: Identifiable {
     var matches: [Entry] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return entries }
-        return Search.ordered(entries, query: q, name: { $0.name }, aliases: { $0.isAction ? [] : (aliases[$0.id] ?? []) }, identity: { $0.id }, history: searchHistory)
+        return Search.ordered(entries, query: q, name: { $0.name }, aliases: { SystemSettings.find($0.id)?.aliases ?? ($0.isAction ? [] : (aliases[$0.id] ?? [])) }, identity: { $0.id }, history: searchHistory)
     }
     func refresh() {
         refreshVersion += 1
@@ -122,6 +122,7 @@ struct Entry: Identifiable {
                     found.append(Entry(id: u.path, name: u.deletingPathExtension().lastPathComponent, url: u, icon: NSImage(systemSymbolName: "terminal", accessibilityDescription: nil)!, isAction: true))
                 }
             }
+            found.append(contentsOf: SystemSettings.destinations.map { Entry(id: $0.id, name: $0.name, url: $0.url, icon: NSImage(systemSymbolName: $0.symbol, accessibilityDescription: nil)!, isAction: true) })
             found.append(Entry(id: "system-theme", name: NSLocalizedString("Toggle Dark Mode", comment: ""), url: nil, icon: NSImage(systemSymbolName: "moon", accessibilityDescription: nil)!, isAction: true))
             let result = found.sorted { $0.name.localizedStandardCompare($1.name) == .orderedAscending }
             DispatchQueue.main.async {
@@ -231,6 +232,10 @@ struct Entry: Identifiable {
                     else { self.rememberSearch(query: selectedQuery, app: appID) }
                 }
             }
+            return
+        }
+        if let setting = SystemSettings.find(e.id) {
+            if !NSWorkspace.shared.open(setting.url) { report(NSLocalizedString("Couldn’t open System Settings.", comment: "")) }
             return
         }
         guard !commandRunning else { report(NSLocalizedString("A command is already running.", comment: "")); return }

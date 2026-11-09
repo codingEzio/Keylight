@@ -22,7 +22,7 @@ enum CLI {
       Keylight --help                   Show this help
     KEYLIGHT_CONFIG overrides the settings file path.
     """
-    struct Item { let name: String; let path: String; let command: Bool; var visible = true; var backgroundOnly = false; var installerName = false }
+    struct Item { let name: String; let path: String; let command: Bool; var aliases: [String] = []; var visible = true; var backgroundOnly = false; var installerName = false }
     static func items(_ c: KeylightConfig, includeExcluded: Bool = false, includeCommands: Bool = true, home: String = NSHomeDirectory()) throws -> [Item] {
         var out: [Item] = [], seen = Set<String>(), failures: [String] = []; let exclusions = Set(c.excluded.map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().standardizedFileURL.path })
         for path in c.folders {
@@ -42,6 +42,7 @@ enum CLI {
             do { let urls = try FileManager.default.contentsOfDirectory(at: URL(fileURLWithPath: c.scripts), includingPropertiesForKeys: [.isRegularFileKey], options: [.skipsHiddenFiles]); for url in urls where (try? url.resourceValues(forKeys: [.isRegularFileKey]).isRegularFile) == true && FileManager.default.isExecutableFile(atPath: url.path) { out.append(Item(name: url.deletingPathExtension().lastPathComponent, path: url.path, command: true)) } }
             catch { failures.append(c.scripts) }
         }
+        if includeCommands { out.append(contentsOf: SystemSettings.destinations.map { Item(name: $0.name, path: $0.id, command: true, aliases: $0.aliases) }) }
         guard failures.isEmpty else { throw ConfigError.io("Cannot read configured folders: " + failures.joined(separator: ", ")) }
         let executable = URL(fileURLWithPath: CommandLine.arguments[0]).resolvingSymlinksInPath(); let path = executable.deletingLastPathComponent().deletingLastPathComponent().appendingPathComponent("Resources/toggle-dark-mode.sh").path
         if includeCommands && FileManager.default.isExecutableFile(atPath: path) { out.append(Item(name: "Toggle Dark Mode", path: path, command: true)) }
@@ -91,13 +92,14 @@ enum CLI {
             }
             if args.first == "search", args.count <= 2 {
                 let q = (args.count == 2 ? args[1] : "").trimmingCharacters(in: .whitespacesAndNewlines); let config = try ConfigStore.read()
-                let results = Search.ordered(try items(config), query: q, name: { $0.name }, aliases: { $0.command ? [] : (config.aliases[$0.path] ?? []) }, identity: { $0.path }, history: try SearchHistoryStore.read())
+                let results = Search.ordered(try items(config), query: q, name: { $0.name }, aliases: { $0.command ? $0.aliases : (config.aliases[$0.path] ?? []) }, identity: { $0.path }, history: try SearchHistoryStore.read())
                 for item in results { print("\(item.name)\t\(item.command ? "command" : "app")\t\(item.path)") }; return 0
             }
             if args.count == 2, args[0] == "run" {
                 let config = try ConfigStore.read(); let results = try items(config).filter { $0.name.caseInsensitiveCompare(args[1]) == .orderedSame || (!$0.command && (config.aliases[$0.path] ?? []).contains { $0.caseInsensitiveCompare(args[1]) == .orderedSame }) }
                 guard results.count == 1, let item = results.first else { throw ConfigError.io(results.isEmpty ? "No exact match." : "Multiple exact matches; choose a unique name.") }
-                let p = Process(); p.executableURL = URL(fileURLWithPath: item.command ? item.path : "/usr/bin/open"); if !item.command { p.arguments = [item.path] }; try p.run(); p.waitUntilExit(); return p.terminationStatus
+                let setting = SystemSettings.find(item.path)
+                let p = Process(); p.executableURL = URL(fileURLWithPath: item.command && setting == nil ? item.path : "/usr/bin/open"); if let setting { p.arguments = [setting.url.absoluteString] } else if !item.command { p.arguments = [item.path] }; try p.run(); p.waitUntilExit(); return p.terminationStatus
             }
             throw ConfigError.io(help)
         } catch { fputs("Keylight: \(error.localizedDescription)\n", stderr); return 1 }

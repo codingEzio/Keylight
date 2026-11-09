@@ -38,6 +38,9 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
     assert json.loads(run("config", "show")) == config
     results = run("search")
     assert "Alpha\t" in results and "Hidden\t" not in results and "DotApp\t" in results and "Hello\t" in results
+    assert "com.apple.Wallpaper-Settings.extension" in run("search", "wallpaper")
+    assert "com.apple.LoginItems-Settings.extension" in run("search", "startup")
+    assert "com.apple.Wallpaper-Settings.extension" in run("search", "桌布")
     before_preview = json.loads(run("config", "show"))
     all_apps = run("apps", "all"); assert "hide\tHidden\t" in all_apps and "show\tAlpha\t" in all_apps
     background = run("apps", "background"); assert "HelperService" in background and "MenuBarTool" not in background

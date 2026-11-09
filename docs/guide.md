@@ -44,3 +44,7 @@ Doto font: [Google Fonts source](https://github.com/google/fonts/tree/9710da1eac
 Keylight source is licensed under [GPL-3.0-only](../LICENSE). The bundled Doto font remains under SIL OFL 1.1.
 
 App icon: generated with OpenAI image generation and stored as `Assets/Keylight.png`.
+
+## System Settings shortcuts
+
+Search for Wallpaper or Login Items & Extensions (also searchable as startup) to open that pane directly. The shared catalog in `Sources/SystemSettings.swift` contains their names, search terms, icons and macOS extension identifiers. Availability depends on macOS.
