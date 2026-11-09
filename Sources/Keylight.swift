@@ -399,6 +399,8 @@ struct SettingsView: View {
     @State private var aliasPath = ""
     @State private var aliasText = ""
     @State private var confirmResetLearning = false
+    private enum Page: Hashable { case general, apps, aliases, configuration }
+    @State private var page: Page? = .general
     func chooseFolder() { let p = NSOpenPanel(); p.canChooseFiles = false; p.canChooseDirectories = true; p.allowsMultipleSelection = false; if p.runModal() == .OK, let u = p.url, !model.folders.contains(u.path) { model.folderJSON = model.encode(model.folders + [u.path]) } }
     func chooseExcluded() { let p = NSOpenPanel(); p.canChooseDirectories = false; p.canChooseFiles = true; p.allowedContentTypes = [.applicationBundle]; if p.runModal() == .OK, let u = p.url, !model.excluded.contains(u.path) { model.excludeJSON = model.encode(model.excluded + [u.path]) } }
     func chooseAliasApp() {
@@ -415,7 +417,16 @@ struct SettingsView: View {
         if panel.runModal() == .OK, let url = panel.url { do { try ConfigStore.encode(ConfigStore.read()).write(to: url, options: .atomic) } catch { model.error = error.localizedDescription } }
     }
     var body: some View {
-        Form {
+        NavigationSplitView {
+            List(selection: $page) {
+                Label("General", systemImage: "gearshape").tag(Page.general)
+                Label("Search apps", systemImage: "app.badge.checkmark").tag(Page.apps)
+                Label("App aliases", systemImage: "text.badge.plus").tag(Page.aliases)
+                Label("Configuration", systemImage: "folder").tag(Page.configuration)
+            }.listStyle(.sidebar).navigationSplitViewColumnWidth(min: 160, ideal: 185, max: 230)
+        } detail: {
+          Form {
+            if page == .general {
             Section("General") {
                 HStack { Text("Shortcut"); Spacer(); Picker("", selection: $model.modifier) { ForEach(["⌘","⌥","⌃","⌘ ⇧","⌘ ⌥","⌃ ⌥","⌘ ⌥ ⇧"], id: \.self) { Text($0) } }.labelsHidden().frame(width: 100); Picker("", selection: $model.key) { ForEach(["Space"] + Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map(String.init), id: \.self) { Text($0) } }.labelsHidden().frame(width: 110) }
                 Picker("Search theme", selection: $model.theme) { ForEach(["Liquid Glass", "Cyberpunk 2077", "Windows XP", "Nothing"], id: \.self) { Text($0) } }
@@ -423,12 +434,17 @@ struct SettingsView: View {
                 if model.modifier == "⌘" && model.key == "Space" { Text("Spotlight may use this shortcut.").foregroundStyle(.secondary).font(.caption) }
                 if let error = model.error { Text(error).foregroundStyle(.red).font(.caption) }
             }
+            Section("Keylight") { HStack { Button("Refresh Apps") { model.refresh() }; Button("Quit Keylight") { NSApp.terminate(nil) } } }
+            }
+            if page == .apps {
             Section("App folders") {
                 ForEach(model.folders, id: \.self) { path in HStack { Image(systemName:"folder"); Text(path.replacingOccurrences(of:NSHomeDirectory(), with:"~")).lineLimit(1).truncationMode(.middle); Spacer(); Button { model.folderJSON = model.encode(model.folders.filter { $0 != path }) } label: { Image(systemName:"minus.circle") }.buttonStyle(.borderless) } }
                 Button("Add folder…", action: chooseFolder)
                 if !model.unavailableFolders.isEmpty { Text("Some folders could not be read.").foregroundStyle(.orange).font(.caption) }
             }
             AppVisibilitySection(model: model, chooseExcluded: chooseExcluded)
+            }
+            if page == .aliases {
             Section("Search learning") {
                 Text("Keylight learns from apps opened for each search. Learning stays on this Mac.").font(.caption).foregroundStyle(.secondary)
                 if let error = model.learningError { Text(error).foregroundStyle(.red).font(.caption) }
@@ -451,10 +467,14 @@ struct SettingsView: View {
                     Button("Add") { model.changeAlias(path: aliasPath, alias: aliasText, add: true); aliasText = "" }.disabled(aliasPath.isEmpty || aliasText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
-            Section("Keylight") { HStack { Button("Refresh Apps") { model.refresh() }; Button("Quit Keylight") { NSApp.terminate(nil) } } }
+            }
+            if page == .configuration {
             Section("Configuration") { HStack { Button("Import…", action: importSettings); Button("Export…", action: exportSettings) } }
             Section("Commands") { HStack { if model.scripts.isEmpty { Text("No folder selected") } else { Text(model.scripts.replacingOccurrences(of:NSHomeDirectory(), with:"~")).lineLimit(1) }; Spacer(); Button("Choose…", action: chooseScripts) } }
-        }.formStyle(.grouped).frame(width: 570, height: 610)
+            }
+          }.formStyle(.grouped)
+        }
+        .frame(minWidth: 650, minHeight: 480)
     }
 }
 
@@ -555,7 +575,7 @@ final class KeyPanel: NSPanel {
         if abs(p.frame.height - height) > 1 { p.setFrame(frame, display: true) }
     }
     @objc func openSettings() {
-        if settings == nil { let w = NSWindow(contentRect: NSRect(x:0,y:0,width:570,height:610), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false); w.title = NSLocalizedString("Settings", comment: ""); w.isReleasedWhenClosed = false; w.contentView = NSHostingView(rootView: SettingsView(model:model)); w.center(); settings = w }
+        if settings == nil { let w = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:600), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false); w.title = NSLocalizedString("Settings", comment: ""); w.isReleasedWhenClosed = false; w.contentView = NSHostingView(rootView: SettingsView(model:model)); w.center(); settings = w }
         NSApp.activate(ignoringOtherApps:true); settings?.makeKeyAndOrderFront(nil)
     }
 }
