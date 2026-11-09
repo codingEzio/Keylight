@@ -264,15 +264,16 @@ struct Entry: Identifiable {
     }
 }
 
-// A compact dot-matrix mark keeps the Nothing treatment independent of text glyphs.
-struct NothingMark: View {
+// Dot-matrix search glyph, rendered natively at the control's actual size.
+struct NothingSearchIcon: View {
     var body: some View {
         Canvas { context, size in
-            let dots: [(Int, Int)] = [(0,0), (1,0), (2,0), (0,1), (2,1), (0,2), (1,2), (2,2), (2,3), (3,3)]
-            let unit = size.width / 4
-            for (x, y) in dots {
-                let dot = CGRect(x: CGFloat(x) * unit + 1, y: CGFloat(y) * unit + 1, width: unit - 2, height: unit - 2)
-                context.fill(Path(ellipseIn: dot), with: .color(.primary))
+            let points: [(CGFloat, CGFloat)] = (0..<12).map { index in
+                let angle = CGFloat(index) * .pi / 6
+                return (8 + cos(angle) * 6, 8 + sin(angle) * 6)
+            } + [(13, 13), (15, 15), (17, 17)]
+            for (x, y) in points {
+                context.fill(Path(ellipseIn: CGRect(x: x * size.width / 20 - 1, y: y * size.height / 20 - 1, width: 2, height: 2)), with: .color(.primary))
             }
         }.frame(width: 20, height: 20).accessibilityHidden(true)
     }
@@ -322,7 +323,7 @@ struct SearchView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                if nothing { NothingMark() } else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
+                if nothing { NothingSearchIcon() } else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
                 TextField("", text: $model.query).textFieldStyle(.plain).font(searchFont).foregroundColor(xp ? .white : foreground).accessibilityLabel(Text("Search"))
                     .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search").font(searchFont).foregroundColor(xp ? .white.opacity(0.9) : foreground.opacity(0.65)).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,_ in model.selected = 0; clickedID = nil }
@@ -333,11 +334,16 @@ struct SearchView: View {
                         Divider()
                         Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
                     }
-            }.padding(.horizontal, 18).padding(.vertical, 18)
+            }.padding(.horizontal, nothing ? 15 : 18).padding(.vertical, nothing ? 12 : 18)
                 .foregroundStyle(xp ? Color.white : foreground)
-                .background(xp ? Color(red: 0.16, green: 0.25, blue: 0.39) : .clear)
-            if nothing { Rectangle().fill(foreground.opacity(0.12)).frame(height: 1).padding(.horizontal, 18) }
-            else { Divider() }
+                .background {
+                    if nothing {
+                        Capsule().fill(foreground.opacity(isDark ? 0.07 : 0.05))
+                            .overlay(Capsule().stroke(foreground.opacity(0.10), lineWidth: 1))
+                    } else if xp { Color(red: 0.16, green: 0.25, blue: 0.39) }
+                }
+                .padding(.horizontal, nothing ? 14 : 0).padding(.top, nothing ? 12 : 0)
+            if !nothing { Divider() }
             ScrollViewReader { proxy in
               ScrollView {
                 LazyVStack(spacing: 2) {
@@ -349,13 +355,16 @@ struct SearchView: View {
                     } label: {
                         HStack(spacing: 12) {
                             if nothing { Circle().fill(i == model.selected ? nothingAccent : .clear).frame(width: 6, height: 6) }
-                            Image(nsImage: e.icon).renderingMode(e.isAction ? .template : .original).resizable().frame(width: 29, height: 29)
+                            Image(nsImage: e.icon).renderingMode(e.isAction ? .template : .original).resizable()
+                                .frame(width: nothing ? 23 : 29, height: nothing ? 23 : 29)
+                                .frame(width: nothing ? 34 : 29, height: nothing ? 34 : 29)
+                                .background { if nothing { Circle().fill(foreground.opacity(isDark ? 0.10 : 0.08)) } }
                             matchText(e.name).font(font).lineLimit(1)
                             Spacer()
                             if i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(nothing ? nothingAccent : rowForeground(selected: true)) }
                         }
                             .foregroundStyle(rowForeground(selected: i == model.selected))
-                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? selectedBackground : .clear).clipShape(RoundedRectangle(cornerRadius: nothing ? 16 : xp ? 2 : cyber ? 3 : 9))
+                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? selectedBackground : .clear).clipShape(RoundedRectangle(cornerRadius: nothing ? 22 : xp ? 2 : cyber ? 3 : 9))
                     }.buttonStyle(.plain).id(e.id)
                 }
                 }.padding(8)
