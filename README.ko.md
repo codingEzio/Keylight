@@ -25,5 +25,6 @@ open dist/Keylight.app
 | ↑ ↓ / Return | 결과 선택／열기 |
 | ⌘ M / ⌘ Z | 선택한 앱 제외／실행 취소 |
 | ⌘ , | 설정 열기 |
+| ⌘ R / ⌘ Q | 앱 새로 고침 / Keylight 종료 |
 
 설정, CLI, 권한 및 글꼴 출처는 [가이드](docs/guide.md)(영어)를 참고하세요. 소스는 [GPL-3.0-only](LICENSE), Doto 글꼴은 [SIL OFL 1.1](Resources/Doto-OFL.txt)을 따릅니다.

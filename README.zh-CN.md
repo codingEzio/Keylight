@@ -25,5 +25,6 @@ open dist/Keylight.app
 | ↑ ↓ / Return | 选择／打开结果 |
 | ⌘ M / ⌘ Z | 排除所选应用／撤销 |
 | ⌘ , | 打开设置 |
+| ⌘ R / ⌘ Q | 刷新应用／退出 Keylight |
 
 更多设置、CLI、权限与字体署名见[指南](docs/guide.md)（英文）。源码采用 [GPL-3.0-only](LICENSE)；Doto 字体采用 [SIL OFL 1.1](Resources/Doto-OFL.txt)。

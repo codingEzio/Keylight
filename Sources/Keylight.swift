@@ -271,6 +271,7 @@ struct SearchView: View {
     @FocusState private var focus: Bool
     @State private var clickedID: String?
     @Environment(\.colorScheme) private var colorScheme
+    @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var isDark: Bool { colorScheme == .dark }
     var cyber: Bool { model.theme == "Cyberpunk 2077" }
     var nothing: Bool { model.theme == "Nothing" }
@@ -280,14 +281,12 @@ struct SearchView: View {
         return .primary
     }
     var selectedBackground: Color {
-        if cyber { return Color(red: 1, green: 0.86, blue: 0) }
-        if nothing { return isDark ? .white : .black }
+        if cyber { return isDark ? Color(red: 0.36, green: 0.34, blue: 0.20) : Color(red: 0.80, green: 0.76, blue: 0.59) }
+        if nothing { return isDark ? Color.white.opacity(0.20) : Color.black.opacity(0.16) }
         if xp { return isDark ? Color(red: 0.15, green: 0.30, blue: 0.53) : Color(red: 0.78, green: 0.86, blue: 0.97) }
         return Color.accentColor.opacity(0.2)
     }
     func rowForeground(selected: Bool) -> Color {
-        if selected && cyber { return .black }
-        if selected && nothing { return isDark ? .black : .white }
         if cyber { return isDark ? Color(red: 1, green: 0.48, blue: 0.48) : Color(red: 0.55, green: 0.04, blue: 0.08) }
         return foreground
     }
@@ -319,7 +318,7 @@ struct SearchView: View {
                         Divider()
                         Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
                     }
-            }.padding(18).foregroundStyle(xp ? Color.white : foreground).background(xp ? Color(red: 0.05, green: 0.32, blue: 0.83) : .clear)
+            }.padding(18).foregroundStyle(xp ? Color.white : foreground).background(xp ? Color(red: 0.16, green: 0.25, blue: 0.39) : .clear)
             Divider()
             ScrollViewReader { proxy in
               ScrollView {
@@ -339,8 +338,8 @@ struct SearchView: View {
               }.frame(maxHeight: 350).onChange(of: model.selected) { _, value in if model.matches.indices.contains(value) { proxy.scrollTo(model.matches[value].id, anchor: .center) } }
             }
         }.foregroundStyle(foreground)
-        .background { if cyber || nothing || xp { customBackground } else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) } }
-        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)).overlay(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18).stroke(cyber ? .red : xp ? .blue : .white.opacity(0.3), lineWidth: xp ? 3 : 1))
+        .background { if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) } else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) } }
+        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)).overlay(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18).stroke(cyber ? Color.red.opacity(0.45) : xp ? Color.blue.opacity(0.45) : .white.opacity(0.3), lineWidth: xp ? 2 : 1))
         .onAppear { focus = true; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
@@ -452,6 +451,7 @@ struct SettingsView: View {
                     Button("Add") { model.changeAlias(path: aliasPath, alias: aliasText, add: true); aliasText = "" }.disabled(aliasPath.isEmpty || aliasText.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty)
                 }
             }
+            Section("Keylight") { HStack { Button("Refresh Apps") { model.refresh() }; Button("Quit Keylight") { NSApp.terminate(nil) } } }
             Section("Configuration") { HStack { Button("Import…", action: importSettings); Button("Export…", action: exportSettings) } }
             Section("Commands") { HStack { if model.scripts.isEmpty { Text("No folder selected") } else { Text(model.scripts.replacingOccurrences(of:NSHomeDirectory(), with:"~")).lineLimit(1) }; Spacer(); Button("Choose…", action: chooseScripts) } }
         }.formStyle(.grouped).frame(width: 570, height: 610)
@@ -462,6 +462,7 @@ final class KeyPanel: NSPanel {
     override var canBecomeKey: Bool { true }
     var showSettings: (() -> Void)?
     var excludeSelected: ((UndoManager?) -> Void)?
+    var refreshApps: (() -> Void)?
     override func sendEvent(_ event: NSEvent) {
         if event.type == .keyDown, handleEditingKey(event) { return }
         if event.type == .rightMouseDown, let editor = firstResponder as? NSTextView,
@@ -484,6 +485,12 @@ final class KeyPanel: NSPanel {
     private func handleEditingKey(_ event: NSEvent) -> Bool {
         if event.charactersIgnoringModifiers == ",", event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
             showSettings?(); return true
+        }
+        if event.charactersIgnoringModifiers?.lowercased() == "q", event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
+            NSApp.terminate(nil); return true
+        }
+        if event.charactersIgnoringModifiers?.lowercased() == "r", event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
+            refreshApps?(); return true
         }
         if event.charactersIgnoringModifiers?.lowercased() == "m", event.modifierFlags.intersection(.deviceIndependentFlagsMask) == .command {
             excludeSelected?(firstResponder?.undoManager); return true
@@ -509,7 +516,7 @@ final class KeyPanel: NSPanel {
 }
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = Model(); var eventHandler: EventHandlerRef?; var panel: NSPanel?; var settings: NSWindow?; var status: NSStatusItem?
+    let model = Model(); var eventHandler: EventHandlerRef?; var panel: NSPanel?; var settings: NSWindow?
     func applicationDidFinishLaunching(_ note: Notification) {
         NSApp.setActivationPolicy(.accessory)
         if CommandLine.arguments.contains("--preview-light") { NSApp.appearance = NSAppearance(named: .aqua) }
@@ -520,8 +527,10 @@ final class KeyPanel: NSPanel {
         if handlerStatus != noErr { model.error = "Shortcut event handler failed (\(handlerStatus))." }; model.registerHotKey(); model.refresh()
         if CommandLine.arguments.contains("--preview-search") { DispatchQueue.main.async { self.toggle() } }
         if CommandLine.arguments.contains("--preview-settings") { DispatchQueue.main.async { self.openSettings() } }
-        let s = NSStatusBar.system.statusItem(withLength: NSStatusItem.variableLength); s.button?.image = NSImage(systemSymbolName: "magnifyingglass", accessibilityDescription: "Keylight"); s.button?.toolTip = "Keylight"
-        let menu = NSMenu(); menu.addItem(withTitle: NSLocalizedString("Open Keylight", comment: ""), action: #selector(openSearch), keyEquivalent: ""); menu.addItem(withTitle: NSLocalizedString("Settings…", comment: ""), action: #selector(openSettings), keyEquivalent: ","); menu.addItem(withTitle: NSLocalizedString("Refresh Apps", comment: ""), action: #selector(refreshApps), keyEquivalent: ""); menu.addItem(.separator()); menu.addItem(withTitle: NSLocalizedString("Quit Keylight", comment: ""), action: #selector(NSApplication.terminate(_:)), keyEquivalent: "q"); for item in menu.items where item.action == #selector(openSearch) || item.action == #selector(openSettings) || item.action == #selector(refreshApps) { item.target = self }; s.menu = menu; status = s
+    }
+    func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
+        if panel?.isVisible != true { toggle() }
+        return false
     }
     @objc func openSearch() { toggle() }
     @objc func refreshApps() { model.refresh() }
@@ -534,6 +543,7 @@ final class KeyPanel: NSPanel {
         model.query = ""; model.selected = 0
         let content = SearchView(model: model, close: { [weak self] in self?.panel?.orderOut(nil) }, resize: { [weak self] count in self?.resizePanel(count) })
         let p = KeyPanel(contentRect: NSRect(x: 0,y: 0,width: 560,height: 440), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        p.refreshApps = { [weak self] in self?.model.refresh() }
         p.showSettings = { [weak self] in self?.panel?.orderOut(nil); self?.openSettings() }
         p.excludeSelected = { [weak self] manager in self?.model.excludeSelectedApp(undoManager: manager) }
         p.isFloatingPanel = true; p.level = .floating; p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = true; p.hidesOnDeactivate = !CommandLine.arguments.contains("--preview-fixed"); p.contentView = NSHostingView(rootView: content); p.center(); panel = p; NSApp.activate(ignoringOtherApps: true); p.makeKeyAndOrderFront(nil)

@@ -25,5 +25,6 @@ open dist/Keylight.app
 | ↑ ↓ / Return | 選取／開啟結果 |
 | ⌘ M / ⌘ Z | 排除所選 App／復原 |
 | ⌘ , | 開啟設定 |
+| ⌘ R / ⌘ Q | 重新整理 App／結束 Keylight |
 
 更多設定、CLI、權限與字型署名見[指南](docs/guide.md)（英文）。原始碼採用 [GPL-3.0-only](LICENSE)；Doto 字型採用 [SIL OFL 1.1](Resources/Doto-OFL.txt)。

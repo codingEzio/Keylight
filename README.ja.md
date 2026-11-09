@@ -25,5 +25,6 @@ open dist/Keylight.app
 | ↑ ↓ / Return | 結果を選択／開く |
 | ⌘ M / ⌘ Z | 選択したアプリを除外／取り消す |
 | ⌘ , | 設定を開く |
+| ⌘ R / ⌘ Q | アプリを更新／Keylight を終了 |
 
 設定、CLI、権限、フォントの帰属については[ガイド](docs/guide.md)（英語）を参照してください。ソースコードは [GPL-3.0-only](LICENSE)、Doto フォントは [SIL OFL 1.1](Resources/Doto-OFL.txt) です。

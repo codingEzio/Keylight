@@ -25,5 +25,6 @@ open dist/Keylight.app
 | ↑ ↓ / Return | Select / open a result |
 | ⌘ M / ⌘ Z | Exclude selected app / undo |
 | ⌘ , | Open settings |
+| ⌘ R / ⌘ Q | Refresh apps / quit Keylight |
 
 More options, CLI, permissions and font attribution: [Guide](docs/guide.md) (English). Source: [GPL-3.0-only](LICENSE). Doto font: [SIL OFL 1.1](Resources/Doto-OFL.txt).
