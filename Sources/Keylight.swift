@@ -264,6 +264,20 @@ struct Entry: Identifiable {
     }
 }
 
+// A compact dot-matrix mark keeps the Nothing treatment independent of text glyphs.
+struct NothingMark: View {
+    var body: some View {
+        Canvas { context, size in
+            let dots: [(Int, Int)] = [(0,0), (1,0), (2,0), (0,1), (2,1), (0,2), (1,2), (2,2), (2,3), (3,3)]
+            let unit = size.width / 4
+            for (x, y) in dots {
+                let dot = CGRect(x: CGFloat(x) * unit + 1, y: CGFloat(y) * unit + 1, width: unit - 2, height: unit - 2)
+                context.fill(Path(ellipseIn: dot), with: .color(.primary))
+            }
+        }.frame(width: 20, height: 20).accessibilityHidden(true)
+    }
+}
+
 struct SearchView: View {
     @ObservedObject var model: Model
     let close: () -> Void
@@ -276,13 +290,14 @@ struct SearchView: View {
     var cyber: Bool { model.theme == "Cyberpunk 2077" }
     var nothing: Bool { model.theme == "Nothing" }
     var xp: Bool { model.theme == "Windows XP" }
+    var nothingAccent: Color { isDark ? Color(red: 0.91, green: 0.35, blue: 0.30) : Color(red: 0.70, green: 0.15, blue: 0.13) }
     var foreground: Color {
         if cyber || nothing || xp { return isDark ? .white : .black }
         return .primary
     }
     var selectedBackground: Color {
         if cyber { return isDark ? Color(red: 0.36, green: 0.34, blue: 0.20) : Color(red: 0.80, green: 0.76, blue: 0.59) }
-        if nothing { return isDark ? Color.white.opacity(0.20) : Color.black.opacity(0.16) }
+        if nothing { return isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.07) }
         if xp { return isDark ? Color(red: 0.15, green: 0.30, blue: 0.53) : Color(red: 0.78, green: 0.86, blue: 0.97) }
         return Color.accentColor.opacity(0.2)
     }
@@ -295,7 +310,7 @@ struct SearchView: View {
         if nothing { return isDark ? Color(red: 0.055, green: 0.055, blue: 0.06) : Color(red: 0.96, green: 0.96, blue: 0.95) }
         return isDark ? Color(red: 0.12, green: 0.15, blue: 0.20) : Color(red: 0.94, green: 0.95, blue: 0.98)
     }
-    var font: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 18) : nothing ? .custom("Doto-Black", size: 17) : xp ? .custom("Tahoma", size: 16) : .system(size: 17, weight: .medium) }
+    var font: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 18) : nothing ? .system(size: 16, weight: .medium) : xp ? .custom("Tahoma", size: 16) : .system(size: 17, weight: .medium) }
     var searchFont: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 23) : nothing ? .custom("Doto-Black", size: 22) : xp ? .custom("Tahoma", size: 21) : .system(size: 22) }
     func matchText(_ name: String) -> Text {
         let query = model.query.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -307,7 +322,7 @@ struct SearchView: View {
     var body: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
-                Image(systemName: "magnifyingglass").font(.system(size: 20))
+                if nothing { NothingMark() } else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
                 TextField("", text: $model.query).textFieldStyle(.plain).font(searchFont).foregroundColor(xp ? .white : foreground).accessibilityLabel(Text("Search"))
                     .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search").font(searchFont).foregroundColor(xp ? .white.opacity(0.9) : foreground.opacity(0.65)).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,_ in model.selected = 0; clickedID = nil }
@@ -318,8 +333,11 @@ struct SearchView: View {
                         Divider()
                         Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
                     }
-            }.padding(18).foregroundStyle(xp ? Color.white : foreground).background(xp ? Color(red: 0.16, green: 0.25, blue: 0.39) : .clear)
-            Divider()
+            }.padding(.horizontal, 18).padding(.vertical, 18)
+                .foregroundStyle(xp ? Color.white : foreground)
+                .background(xp ? Color(red: 0.16, green: 0.25, blue: 0.39) : .clear)
+            if nothing { Rectangle().fill(foreground.opacity(0.12)).frame(height: 1).padding(.horizontal, 18) }
+            else { Divider() }
             ScrollViewReader { proxy in
               ScrollView {
                 LazyVStack(spacing: 2) {
@@ -329,9 +347,15 @@ struct SearchView: View {
                         if clickedID == e.id && model.selected == i { model.run(e); close() }
                         else { model.selected = i; clickedID = e.id; focus = true }
                     } label: {
-                        HStack(spacing: 12) { Image(nsImage: e.icon).renderingMode(e.isAction ? .template : .original).resizable().frame(width: 29, height: 29); matchText(e.name).font(font); Spacer(); if i == model.selected { Text("↵").font(.system(size: 16)) } }
+                        HStack(spacing: 12) {
+                            if nothing { Circle().fill(i == model.selected ? nothingAccent : .clear).frame(width: 6, height: 6) }
+                            Image(nsImage: e.icon).renderingMode(e.isAction ? .template : .original).resizable().frame(width: 29, height: 29)
+                            matchText(e.name).font(font).lineLimit(1)
+                            Spacer()
+                            if i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(nothing ? nothingAccent : rowForeground(selected: true)) }
+                        }
                             .foregroundStyle(rowForeground(selected: i == model.selected))
-                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? selectedBackground : .clear).clipShape(RoundedRectangle(cornerRadius: xp ? 2 : cyber ? 3 : 9))
+                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? selectedBackground : .clear).clipShape(RoundedRectangle(cornerRadius: nothing ? 16 : xp ? 2 : cyber ? 3 : 9))
                     }.buttonStyle(.plain).id(e.id)
                 }
                 }.padding(8)
@@ -339,7 +363,7 @@ struct SearchView: View {
             }
         }.foregroundStyle(foreground)
         .background { if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) } else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) } }
-        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)).overlay(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18).stroke(cyber ? Color.red.opacity(0.45) : xp ? Color.blue.opacity(0.45) : .white.opacity(0.3), lineWidth: xp ? 2 : 1))
+        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)).overlay(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18).stroke(nothing ? foreground.opacity(0.16) : cyber ? Color.red.opacity(0.45) : xp ? Color.blue.opacity(0.45) : .white.opacity(0.3), lineWidth: xp ? 2 : 1))
         .onAppear { focus = true; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
