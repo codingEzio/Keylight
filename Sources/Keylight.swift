@@ -279,6 +279,54 @@ struct NothingSearchIcon: View {
     }
 }
 
+// Quiet, static background details; the result list remains the visual focus.
+struct ThemeAtmosphere: View {
+    let theme: String
+    let dark: Bool
+    var body: some View {
+        Canvas { context, size in
+            let ink = dark ? Color.white : Color.black
+            if theme == "Nothing" {
+                let spacing: CGFloat = 9
+                for row in 0..<24 {
+                    for column in 0..<20 {
+                        let x = size.width - 190 + CGFloat(column) * spacing
+                        let y = size.height - 205 + CGFloat(row) * spacing
+                        let dx = (x - (size.width - 55)) / 140
+                        let dy = (y - (size.height - 30)) / 145
+                        let fade = max(0, 1 - sqrt(dx * dx + dy * dy))
+                        if fade > 0 {
+                            let dot = CGRect(x: x, y: y, width: 2, height: 2)
+                            context.fill(Path(ellipseIn: dot), with: .color(ink.opacity(fade * (dark ? 0.22 : 0.09))))
+                        }
+                    }
+                }
+            } else if theme == "Cyberpunk 2077" {
+                let color = dark ? Color(red: 0.91, green: 0.38, blue: 0.26) : Color(red: 0.55, green: 0.20, blue: 0.14)
+                for index in 0..<7 {
+                    let offset = CGFloat(index) * 16
+                    var path = Path()
+                    path.move(to: CGPoint(x: size.width - 210 + offset, y: size.height))
+                    path.addLine(to: CGPoint(x: size.width - 100 + offset, y: size.height - 88))
+                    path.addLine(to: CGPoint(x: size.width + offset, y: size.height - 88))
+                    context.stroke(path, with: .color(color.opacity(dark ? 0.13 : 0.055)), lineWidth: 1)
+                }
+            } else if theme == "Windows XP" {
+                var hill = Path()
+                hill.move(to: CGPoint(x: size.width * 0.34, y: size.height))
+                hill.addCurve(to: CGPoint(x: size.width, y: size.height - 48), control1: CGPoint(x: size.width * 0.62, y: size.height - 110), control2: CGPoint(x: size.width * 0.78, y: size.height + 28))
+                hill.addLine(to: CGPoint(x: size.width, y: size.height))
+                hill.closeSubpath()
+                context.fill(hill, with: .color(Color.blue.opacity(dark ? 0.12 : 0.055)))
+            } else {
+                var arc = Path()
+                arc.addEllipse(in: CGRect(x: size.width - 260, y: size.height - 135, width: 310, height: 240))
+                context.stroke(arc, with: .color(ink.opacity(dark ? 0.10 : 0.045)), lineWidth: 1)
+            }
+        }.allowsHitTesting(false).accessibilityHidden(true)
+    }
+}
+
 struct SearchView: View {
     @ObservedObject var model: Model
     let close: () -> Void
@@ -369,7 +417,13 @@ struct SearchView: View {
               }.frame(maxHeight: 350).onChange(of: model.selected) { _, value in if model.matches.indices.contains(value) { proxy.scrollTo(model.matches[value].id, anchor: .center) } }
             }
         }.foregroundStyle(foreground)
-        .background { if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) } else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) } }
+        .background {
+            ZStack {
+                if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) }
+                else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) }
+                ThemeAtmosphere(theme: model.theme, dark: isDark)
+            }
+        }
         .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)).overlay(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18).stroke(nothing ? foreground.opacity(0.16) : cyber ? Color.red.opacity(0.45) : xp ? Color.blue.opacity(0.45) : .white.opacity(0.3), lineWidth: xp ? 2 : 1))
         .onAppear { focus = true; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
