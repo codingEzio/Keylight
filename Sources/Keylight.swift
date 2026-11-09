@@ -356,9 +356,7 @@ struct SearchView: View {
                         HStack(spacing: 12) {
                             if nothing { Circle().fill(i == model.selected ? nothingAccent : .clear).frame(width: 6, height: 6) }
                             Image(nsImage: e.icon).renderingMode(e.isAction ? .template : .original).resizable()
-                                .frame(width: nothing ? 23 : 29, height: nothing ? 23 : 29)
-                                .frame(width: nothing ? 34 : 29, height: nothing ? 34 : 29)
-                                .background { if nothing { Circle().fill(foreground.opacity(isDark ? 0.10 : 0.08)) } }
+                                .frame(width: 29, height: 29)
                             matchText(e.name).font(font).lineLimit(1)
                             Spacer()
                             if i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(nothing ? nothingAccent : rowForeground(selected: true)) }
