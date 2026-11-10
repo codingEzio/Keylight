@@ -36,6 +36,19 @@ import Darwin
         guard let receipt = restarted.receipt, restarted.text.isEmpty,
               String(decoding: try Data(contentsOf: URL(fileURLWithPath: receipt.file)), as: UTF8.self).hasSuffix("keep this request\n") else { fatalError("retry did not persist") }
         guard RequestModel().text.isEmpty else { fatalError("saved request reappeared as draft") }
+        let producer = RequestModel(); producer.activate("add"); producer.chooseProject(selected, command: "add")
+        await producer.refreshPool()
+        guard producer.browsingRequests, producer.queuedRequests.count == 1, let entry = producer.queuedRequests.first else { fatalError("saved request not visible on next ADD") }
+        await producer.chooseRequest(entry)
+        guard let original = producer.selectedRequest else { fatalError("selected request not loaded") }
+        producer.text = "append after restart"; producer.persistDraft()
+        // The append reached disk, but the app crashed before its UI acknowledgement.
+        _ = try RequestPool.append(producer.text, to: original, entry: entry, folder: config.requests.queueFolder)
+        let appendRestart = RequestModel()
+        guard appendRestart.selectedEntry?.id == entry.id, appendRestart.text == producer.text else { fatalError("append draft lost") }
+        await appendRestart.submit(command: "add")
+        guard let appendReceipt = appendRestart.receipt,
+              String(decoding: try Data(contentsOf: URL(fileURLWithPath: appendReceipt.file)), as: UTF8.self).hasSuffix("keep this request\n\n\nappend after restart") else { fatalError("append restart duplicated or lost content") }
         let savedRequest = try DevelopmentRequest(text: "check delivery", project: selected, settings: config.requests)
         let savedReceipt = try RequestQueue.save(savedRequest, folder: config.requests.queueFolder)
         let uncertain = ChatLaunchState(threadID: UUID().uuidString, phase: .dispatching)

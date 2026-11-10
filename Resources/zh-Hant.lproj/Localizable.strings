@@ -138,7 +138,7 @@
 "Sent to ChatGPT" = "已傳送至 ChatGPT";
 "Open chat" = "開啟聊天";
 "Start chat" = "啟動聊天";
-"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD 僅儲存；PROJ 使用這些預設啟動 ChatGPT 聊天。";
+"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD 新增或追加專案請求；PROJ 直接傳送一次性請求。";
 "Invalid chat receipt." = "聊天回執無效。";
 "Cannot lock chat request." = "無法鎖定聊天請求。";
 "This request is already being sent." = "此請求正在傳送。";
@@ -156,3 +156,26 @@
 "Install ChatGPT to start this chat. The request is saved locally." = "請安裝 ChatGPT 以啟動聊天。請求已儲存在本機。";
 
 "New request" = "新請求";
+
+"Find requests" = "尋找請求";
+"No pending requests" = "沒有待處理請求";
+"Append more details" = "追加需求內容";
+"Append" = "追加";
+"Return Append · ⌘ Return Start chat" = "Return 追加 · ⌘ Return 開始聊天";
+"Refresh requests" = "重新整理請求";
+"Some requests could not be read. Original files are preserved." = "部分請求無法讀取，原檔已保留。";
+"Invalid queued request path." = "請求檔案路徑無效。";
+"Cannot read queued request." = "無法讀取請求檔案。";
+"Invalid queued request file." = "請求檔案格式無效。";
+"Choose a project first." = "請先選擇專案。";
+"Cannot allocate a unique request filename." = "無法分配不重複的請求檔名。";
+"This request is already sent or needs delivery review." = "此請求已傳送，或需要先確認傳送狀態。";
+"The request changed. Reload it before sending." = "請求已變更，請重新開啟後再操作。";
+"Queued request is unavailable." = "此請求無法使用。";
+"Preview truncated. The full request is saved." = "預覽已截短，完整需求已儲存在檔案中。";
+
+"Loading requests…" = "正在載入請求…";
+"Requests unavailable" = "請求暫時無法使用";
+"No matching requests" = "沒有符合的請求";
+
+"Return Requests" = "Return 查看請求";

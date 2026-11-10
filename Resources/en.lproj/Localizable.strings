@@ -138,7 +138,7 @@
 "Sent to ChatGPT" = "Sent to ChatGPT";
 "Open chat" = "Open chat";
 "Start chat" = "Start chat";
-"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD saves locally. PROJ starts a ChatGPT chat with these presets.";
+"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD creates and appends project requests. PROJ sends a one-off chat.";
 "Invalid chat receipt." = "Invalid chat receipt.";
 "Cannot lock chat request." = "Cannot lock chat request.";
 "This request is already being sent." = "This request is already being sent.";
@@ -156,3 +156,26 @@
 "Install ChatGPT to start this chat. The request is saved locally." = "Install ChatGPT to start this chat. The request is saved locally.";
 
 "New request" = "New request";
+
+"Find requests" = "Find requests";
+"No pending requests" = "No pending requests";
+"Append more details" = "Append more details";
+"Append" = "Append";
+"Return Append · ⌘ Return Start chat" = "Return Append · ⌘ Return Start chat";
+"Refresh requests" = "Refresh requests";
+"Some requests could not be read. Original files are preserved." = "Some requests could not be read. Original files are preserved.";
+"Invalid queued request path." = "Invalid queued request path.";
+"Cannot read queued request." = "Cannot read queued request.";
+"Invalid queued request file." = "Invalid queued request file.";
+"Choose a project first." = "Choose a project first.";
+"Cannot allocate a unique request filename." = "Cannot allocate a unique request filename.";
+"This request is already sent or needs delivery review." = "This request is already sent or needs delivery review.";
+"The request changed. Reload it before sending." = "The request changed. Reload it before sending.";
+"Queued request is unavailable." = "Queued request is unavailable.";
+"Preview truncated. The full request is saved." = "Preview truncated. The full request is saved.";
+
+"Loading requests…" = "Loading requests…";
+"Requests unavailable" = "Requests unavailable";
+"No matching requests" = "No matching requests";
+
+"Return Requests" = "Return Requests";

@@ -12,13 +12,22 @@ import Combine
     @Published var text = ""
     @Published var selectedProject: LocalProject?
     @Published var choosingProject = false
+    @Published var browsingRequests = false
+    @Published private(set) var poolEntries: [QueuedRequest] = []
+    @Published private(set) var poolLoading = false
+    @Published private(set) var poolError: String?
+    @Published private(set) var selectedEntry: QueuedRequest?
+    @Published private(set) var selectedRequest: DevelopmentRequest?
     @Published var receipt: RequestReceipt?
     @Published private(set) var chatURL: URL?
     @Published private(set) var delivery = "Saved locally"
     private var pending: DevelopmentRequest?
     private var pendingReceipt: RequestReceipt?
     private var unreadDraft = false
-    private struct Draft: Codable { let text: String?; let project: LocalProject?; let pending: DevelopmentRequest?; let receipt: RequestReceipt? }
+    private struct Draft: Codable {
+        let text: String?; let project: LocalProject?; let pending: DevelopmentRequest?; let receipt: RequestReceipt?
+        var entry: QueuedRequest?; var base: DevelopmentRequest?
+    }
     private var draftURL: URL { ConfigStore.file.appendingPathExtension("request-draft.json") }
 
     init() {
@@ -31,15 +40,17 @@ import Combine
             if FileManager.default.fileExists(atPath: draftURL.path) {
                 let data = try Data(contentsOf: draftURL)
                 // JSON can escape one byte into six; the request body is stored only once.
-                guard data.count <= 6_100_000 else { throw ConfigError.invalid }
+                guard data.count <= 12_200_000 else { throw ConfigError.invalid }
                 let draft = try JSONDecoder().decode(Draft.self, from: data)
                 text = draft.text ?? draft.pending?.text ?? ""; selectedProject = draft.project; pending = draft.pending; pendingReceipt = draft.receipt
+                selectedEntry = draft.entry; selectedRequest = draft.base
             }
         } catch { unreadDraft = true; self.error = NSLocalizedString("The existing draft could not be read and has been preserved.", comment: "") }
     }
     func apply(_ value: RequestSettings) {
         guard settings != value else { return }
         let changedSource = settings.catalogURL != value.catalogURL
+        if settings.queueFolder != value.queueFolder { poolEntries = []; poolError = nil }
         settings = value
         if changedSource {
             snapshot = nil
@@ -51,6 +62,57 @@ import Combine
         catch { self.error = NSLocalizedString(error.localizedDescription, comment: ""); return false }
     }
     var projects: [LocalProject] { ProjectCatalog.localProjects(snapshot, settings: settings) }
+    var queuedRequests: [QueuedRequest] {
+        guard let project = selectedProject else { return [] }
+        return poolEntries.filter { $0.projectID == project.project.id && $0.projectPath == project.path }
+    }
+    func queuedCount(_ project: LocalProject) -> Int { poolEntries.filter { $0.projectID == project.project.id && $0.projectPath == project.path }.count }
+    func refreshPool() async {
+        guard !poolLoading else { return }
+        guard !settings.queueFolder.isEmpty else { poolEntries = []; poolError = NSLocalizedString("Choose a request folder in Settings.", comment: ""); return }
+        poolLoading = true; defer { poolLoading = false }
+        let folder = settings.queueFolder
+        do {
+            let value = try await Task.detached(priority: .utility) { try RequestPool.scan(folder: folder) }.value
+            guard settings.queueFolder == folder else { return }
+            poolEntries = value.entries
+            poolError = value.unreadable.isEmpty ? nil : NSLocalizedString("Some requests could not be read. Original files are preserved.", comment: "") + " " + value.unreadable.joined(separator: ", ")
+        } catch { if settings.queueFolder == folder { poolError = NSLocalizedString(error.localizedDescription, comment: "") } }
+    }
+    func chooseProject(_ project: LocalProject, command: String) {
+        guard !saving, project.path != nil else { return }
+        if selectedProject?.id != project.id { selectedEntry = nil; selectedRequest = nil; pendingReceipt = nil; pending = nil }
+        selectedProject = project; choosingProject = false
+        browsingRequests = command == "add" && selectedEntry == nil && text.isEmpty
+        error = nil; persistDraft()
+    }
+    func chooseRequest(_ entry: QueuedRequest) async {
+        guard !saving else { return }
+        saving = true; defer { saving = false }
+        let folder = settings.queueFolder
+        do {
+            let request = try await Task.detached(priority: .userInitiated) { try RequestPool.load(entry, folder: folder) }.value
+            guard settings.queueFolder == folder, selectedProject?.project.id == request.projectID, selectedProject?.path == request.projectPath else { throw ConfigError.io("Project checkout is unavailable or outside the selected scope.") }
+            if pending?.id == request.id, pending?.text == text { text = "" }
+            selectedEntry = entry; selectedRequest = request; pending = nil; pendingReceipt = nil
+            receipt = nil; chatURL = nil; browsingRequests = false; error = nil; persistDraft()
+            if let state = try ChatLaunchSession.readState(entry.receipt), state.phase != .prepared {
+                pendingReceipt = entry.receipt; receipt = entry.receipt; chatURL = state.url
+                delivery = state.phase == .sent ? "Sent to ChatGPT" : "Sending could not be confirmed. Open the chat before sending again."
+                persistDraft()
+            }
+        } catch { self.error = NSLocalizedString(error.localizedDescription, comment: "") }
+    }
+    func showRequests() {
+        guard !saving else { return }
+        receipt = nil; chatURL = nil; browsingRequests = true; choosingProject = selectedProject == nil
+        persistDraft()
+    }
+    func composeNew() {
+        guard !saving else { return }
+        selectedEntry = nil; selectedRequest = nil; pendingReceipt = nil; pending = nil; receipt = nil; chatURL = nil
+        browsingRequests = false; choosingProject = selectedProject == nil; error = nil; persistDraft()
+    }
     func refresh() async {
         guard !loading, !settings.catalogURL.isEmpty else { return }
         loading = true; defer { loading = false }
@@ -65,15 +127,18 @@ import Combine
     func activate(_ command: String) {
         receipt = nil; error = nil; chatURL = nil; delivery = "Saved locally"
         choosingProject = selectedProject == nil || text.isEmpty
+        browsingRequests = false
         if let pendingReceipt {
             do {
                 if let state = try ChatLaunchSession.readState(pendingReceipt), state.phase != .prepared {
                     receipt = pendingReceipt; chatURL = state.url
                     delivery = state.phase == .sent ? "Sent to ChatGPT" : "Sending could not be confirmed. Open the chat before sending again."
-                    if state.phase == .sent { clearDraft() }
+                    if state.phase == .sent { clearDraft(keepingProject: command == "add") }
+                    return
                 }
             } catch { self.error = NSLocalizedString(error.localizedDescription, comment: "") }
         }
+        if command == "proj", selectedEntry != nil { selectedEntry = nil; selectedRequest = nil; pendingReceipt = nil }
     }
     func persistDraft() {
         do { try writeDraft() } catch { self.error = NSLocalizedString(error.localizedDescription, comment: "") }
@@ -83,12 +148,13 @@ import Combine
         let storedProject = selectedProject.map { project in
             LocalProject(project: CatalogProject(id: project.project.id, name: project.project.name, summary: "", category: project.project.category, paths: project.path.map { [$0] } ?? []), path: project.path)
         }
-        let storedPending = pending?.text == text ? pending : nil
-        let data = try JSONEncoder().encode(Draft(text: storedPending == nil ? text : nil, project: storedProject, pending: storedPending, receipt: storedPending == nil ? nil : pendingReceipt))
+        let storedPending = selectedEntry == nil && pending?.text == text ? pending : nil
+        let data = try JSONEncoder().encode(Draft(text: storedPending == nil ? text : nil, project: storedProject, pending: storedPending, receipt: storedPending == nil && selectedEntry == nil ? nil : pendingReceipt, entry: selectedEntry, base: selectedRequest))
         try ConfigStore.withLock { try privateAtomicWrite(data, to: draftURL) }
     }
-    private func clearDraft() {
-        text = ""; pending = nil; pendingReceipt = nil; selectedProject = nil
+    private func clearDraft(keepingProject: Bool = false) {
+        text = ""; pending = nil; pendingReceipt = nil; selectedEntry = nil; selectedRequest = nil
+        if !keepingProject { selectedProject = nil }
         persistDraft()
     }
     func startNew() {
@@ -108,7 +174,7 @@ import Combine
         guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") else { error = NSLocalizedString("Install ChatGPT to start this chat. The request is saved locally.", comment: ""); return }
         Task { do { try await openChat(chatURL, app: app) } catch { self.error = error.localizedDescription } }
     }
-    func submit(command: String = "add") async {
+    func submit(command: String = "add", consume: Bool = false) async {
         guard !saving else { return }
         do {
             if let pendingReceipt, let state = try ChatLaunchSession.readState(pendingReceipt), state.phase != .prepared {
@@ -117,15 +183,29 @@ import Combine
             guard let project = selectedProject,
                   projects.contains(where: { $0.id == project.id && $0.path == project.path && $0.path != nil }) else { throw ConfigError.io(NSLocalizedString("Project checkout is unavailable or outside the selected scope.", comment: "")) }
             let request: DevelopmentRequest
-            if let pending, pending.text == text, pending.projectID == selectedProject?.project.id, pending.projectPath == selectedProject?.path, pending.model == settings.model, pending.reasoningEffort == settings.reasoningEffort, (pending.permissionsProfile ?? "Development") == settings.permissionsProfile { request = pending }
+            if let selectedRequest, selectedEntry != nil {
+                guard selectedRequest.projectID == project.project.id, selectedRequest.projectPath == project.path else { throw ConfigError.io("Project checkout is unavailable or outside the selected scope.") }
+                request = text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty && consume ? selectedRequest : try selectedRequest.appending(text)
+            } else if let pending, pending.text == text, pending.projectID == selectedProject?.project.id, pending.projectPath == selectedProject?.path, pending.model == settings.model, pending.reasoningEffort == settings.reasoningEffort, (pending.permissionsProfile ?? "Development") == settings.permissionsProfile { request = pending }
             else { request = try DevelopmentRequest(text: text, project: selectedProject, settings: settings); pending = request; pendingReceipt = nil }
             try writeDraft()
             saving = true; defer { saving = false }
             let folder = settings.queueFolder
             let result: RequestReceipt
-            if let pendingReceipt { result = pendingReceipt }
-            else { result = try await Task.detached(priority: .userInitiated) { try RequestQueue.save(request, folder: folder) }.value; pendingReceipt = result; try writeDraft() }
-            if command == "proj" {
+            if let selectedEntry, let original = selectedRequest {
+                if text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { result = selectedEntry.receipt }
+                else {
+                    let addition = text
+                    let saved = try await Task.detached(priority: .userInitiated) { try RequestPool.append(addition, to: original, entry: selectedEntry, folder: folder) }.value
+                    result = saved.1; selectedRequest = saved.0; text = ""
+                }
+                pendingReceipt = result; try writeDraft()
+            } else if let pendingReceipt { result = pendingReceipt }
+            else {
+                result = try await Task.detached(priority: .userInitiated) { try command == "add" ? RequestPool.save(request, folder: folder) : RequestQueue.save(request, folder: folder) }.value
+                pendingReceipt = result; try writeDraft()
+            }
+            if command == "proj" || consume {
                 guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") else { throw ConfigError.io("Install ChatGPT to start this chat. The request is saved locally.") }
                 let executable = app.appendingPathComponent("Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
                 let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? NSHomeDirectory() + "/.codex"
@@ -135,7 +215,8 @@ import Combine
                 _ = try await Task.detached(priority: .userInitiated) { try session.send() }.value
                 delivery = "Sent to ChatGPT"
             } else { delivery = "Saved locally" }
-            receipt = result; error = nil; clearDraft()
+            receipt = result; error = nil; clearDraft(keepingProject: command == "add")
+            await refreshPool()
         } catch {
             self.error = NSLocalizedString(error.localizedDescription, comment: "")
             if let pendingReceipt, let state = try? ChatLaunchSession.readState(pendingReceipt), state.phase == .dispatching {
@@ -171,18 +252,29 @@ struct RequestComposerView: View {
     private enum Field: Hashable { case project, request }
     @FocusState private var focus: Field?
     var results: [LocalProject] { ProjectCatalog.localProjects(model.snapshot, settings: model.settings, query: filter) }
-    private var selectable: [Int] { results.indices.filter { results[$0].path != nil } }
+    private var requestResults: [QueuedRequest] { model.queuedRequests.filter { filter.isEmpty || $0.title.localizedStandardContains(filter) || URL(fileURLWithPath: $0.file).lastPathComponent.localizedStandardContains(filter) } }
+    private var picking: Bool { model.choosingProject || model.browsingRequests }
+    private var chipFill: Color { appearance.xp ? appearance.headerForeground.opacity(0.14) : appearance.selection }
+    private var selectable: [Int] { model.browsingRequests && !model.choosingProject ? Array(0...requestResults.count) : results.indices.filter { results[$0].path != nil } }
     private func move(_ direction: Int) {
         let choices = selectable
         if let next = direction > 0 ? choices.first(where: { $0 > index }) : choices.last(where: { $0 < index }) { index = next }
     }
     private func pick(_ project: LocalProject) {
-        guard project.path != nil else { return }
-        model.selectedProject = project; model.choosingProject = false; model.error = nil; model.persistDraft()
+        model.chooseProject(project, command: command); filter = ""; index = 0
+    }
+    private func pickRequest(_ position: Int) {
+        if position == 0 { model.composeNew() }
+        else if requestResults.indices.contains(position - 1) {
+            let entry = requestResults[position - 1]
+            Task { await model.chooseRequest(entry) }
+        }
     }
     private func goBack() {
         if model.saving { return }
-        if !model.choosingProject && model.receipt == nil { model.choosingProject = true; filter = "" }
+        if model.browsingRequests { model.browsingRequests = false; model.choosingProject = true; filter = "" }
+        else if !model.choosingProject && command == "add", model.selectedProject != nil { model.showRequests(); filter = ""; Task { await model.refreshPool() } }
+        else if !model.choosingProject && model.receipt == nil { model.choosingProject = true; filter = "" }
         else { model.persistDraft(); back() }
     }
     private var header: some View {
@@ -190,22 +282,22 @@ struct RequestComposerView: View {
             Button(action: { model.persistDraft(); back() }) {
                 Text(command.uppercased()).font(.system(size: 14, weight: .bold, design: .monospaced))
                     .padding(.horizontal, 10).frame(height: 32)
-                    .background(appearance.selection, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                    .background(chipFill, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
             }.buttonStyle(.plain).foregroundStyle(appearance.xp ? appearance.headerForeground : appearance.accent)
                 .frame(minHeight: 44).accessibilityLabel(Text("Back to search"))
             if let project = model.selectedProject, !model.choosingProject {
-                Button { model.choosingProject = true; filter = "" } label: {
+                Button { model.choosingProject = true; model.browsingRequests = false; filter = "" } label: {
                     Text(project.project.name).font(appearance.rowFont).lineLimit(1)
                         .padding(.horizontal, 10).frame(height: 32)
-                        .background(appearance.selection, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                        .background(chipFill, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
                 }.buttonStyle(.plain).frame(maxWidth: 160, minHeight: 44).accessibilityLabel(Text("Choose another project"))
             }
-            if model.choosingProject {
-                TextField("Find projects", text: $filter, prompt: Text("Find projects").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55))).textFieldStyle(.plain).focused($focus, equals: .project)
+            if picking {
+                TextField(LocalizedStringKey(model.choosingProject ? "Find projects" : "Find requests"), text: $filter, prompt: Text(LocalizedStringKey(model.choosingProject ? "Find projects" : "Find requests")).font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55))).textFieldStyle(.plain).focused($focus, equals: .project)
                     .accessibilityIdentifier("requests.projectSearch")
                     .onChange(of: filter) { _, _ in index = selectable.first ?? 0 }
             } else { Spacer(minLength: 0) }
-            if model.loading || model.saving { ProgressView().controlSize(.small) }
+            if model.loading || model.saving || model.poolLoading { ProgressView().controlSize(.small) }
         }.disabled(model.saving)
     }
     private var projectResults: some View {
@@ -225,6 +317,7 @@ struct RequestComposerView: View {
                                     Text(project.path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? NSLocalizedString("No checkout in project root", comment: "")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
                                 }
                                 Spacer(minLength: 8)
+                                if command == "add", model.queuedCount(project) > 0 { Text(model.queuedCount(project), format: .number).font(.caption.monospacedDigit()).foregroundStyle(appearance.accent) }
                                 Text(projectCategoryName(project.project.category)).font(.caption2).foregroundStyle(.secondary)
                                 if i == index && project.path != nil { Text("↵").foregroundStyle(appearance.nothing ? appearance.accent : appearance.rowForeground) }
                             }.foregroundStyle(appearance.rowForeground).padding(.horizontal, 12).frame(height: 45).frame(maxWidth: .infinity, alignment: .leading)
@@ -236,6 +329,35 @@ struct RequestComposerView: View {
                 .onChange(of: index) { _, value in if results.indices.contains(value) { proxy.scrollTo(results[value].id, anchor: .center) } }
         }
     }
+    private var queuedResults: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    Button { pickRequest(0) } label: {
+                        Label("New request", systemImage: "plus").font(appearance.rowFont).frame(maxWidth: .infinity, alignment: .leading)
+                            .padding(.horizontal, 12).frame(height: 45)
+                            .background(index == 0 ? appearance.selection : .clear, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                    }.buttonStyle(.plain).accessibilityIdentifier("requests.new").id(0)
+                    ForEach(Array(requestResults.enumerated()), id: \.element.file) { i, entry in
+                        Button { pickRequest(i + 1) } label: {
+                            HStack(spacing: 12) {
+                                Image(systemName: entry.unconfirmed ? "questionmark.circle" : "doc.text").frame(width: 25)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(entry.title.isEmpty ? URL(fileURLWithPath: entry.file).lastPathComponent : entry.title).font(appearance.rowFont).lineLimit(1)
+                                    Text(URL(fileURLWithPath: entry.file).lastPathComponent).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                                Spacer(minLength: 0)
+                            }.foregroundStyle(appearance.rowForeground).padding(.horizontal, 12).frame(height: 49).frame(maxWidth: .infinity, alignment: .leading)
+                                .background(index == i + 1 ? appearance.selection : .clear, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                        }.buttonStyle(.plain).id(i + 1).accessibilityIdentifier("requests.queued.\(i)")
+                    }
+                    if requestResults.isEmpty {
+                        Text(LocalizedStringKey(model.poolLoading ? "Loading requests…" : model.poolError != nil ? "Requests unavailable" : filter.isEmpty ? "No pending requests" : "No matching requests")).font(.caption).foregroundStyle(.secondary).padding(12)
+                    }
+                }.padding(8)
+            }.onChange(of: index) { _, value in proxy.scrollTo(value, anchor: .center) }
+        }.frame(maxHeight: .infinity)
+    }
     private var resultContent: some View {
         VStack(spacing: 0) {
             if let receipt = model.receipt {
@@ -245,24 +367,46 @@ struct RequestComposerView: View {
                     HStack {
                         if model.chatURL != nil { Button("Open chat") { model.reopenChat() } }
                         Button("Reveal request") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: receipt.file)]) }
-                        Button("New request") { model.startNew(); filter = ""; index = selectable.first ?? 0 }
-                        Button("Done", action: close).keyboardShortcut(.return, modifiers: [])
+                        if command == "add" {
+                            Button("Requests") { model.showRequests(); filter = ""; index = 0; Task { await model.refreshPool() } }.keyboardShortcut(.return, modifiers: [])
+                            Button("Done", action: close)
+                        } else {
+                            Button("New request") { model.startNew(); filter = ""; index = selectable.first ?? 0 }
+                            Button("Done", action: close).keyboardShortcut(.return, modifiers: [])
+                        }
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 Spacer(minLength: 0)
             } else if model.choosingProject {
                 projectResults
+            } else if model.browsingRequests {
+                queuedResults
             } else {
-                TextField("What would you like to change?", text: $model.text, prompt: Text("What would you like to change?").font(appearance.placeholderFont).foregroundColor(appearance.foreground.opacity(0.55)), axis: .vertical)
-                    .textFieldStyle(.plain).font(appearance.inputFont).lineLimit(3...7)
+                if let existing = model.selectedRequest {
+                    ScrollView {
+                        VStack(alignment: .leading, spacing: 8) {
+                            Text(String(existing.text.prefix(8000))).font(appearance.rowFont).textSelection(.enabled)
+                            if existing.text.count > 8000 {
+                                Text("Preview truncated. The full request is saved.").font(.caption).foregroundStyle(.secondary)
+                                if let entry = model.selectedEntry { Button("Reveal request") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: entry.file)]) } }
+                            }
+                        }.frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 18)
+                    }.padding(.top, 10).frame(maxHeight: .infinity)
+                    Divider().padding(.horizontal, 18)
+                }
+                TextField(LocalizedStringKey(model.selectedEntry == nil ? "What would you like to change?" : "Append more details"), text: $model.text, prompt: Text(LocalizedStringKey(model.selectedEntry == nil ? "What would you like to change?" : "Append more details")).font(appearance.placeholderFont).foregroundColor(appearance.foreground.opacity(0.55)), axis: .vertical)
+                    .textFieldStyle(.plain).font(appearance.inputFont).lineLimit(model.selectedEntry == nil ? 3...7 : 1...3)
                     .focused($focus, equals: .request).padding(.horizontal, 18).padding(.top, 10)
                     .accessibilityIdentifier("requests.text").disabled(model.saving)
-                Spacer(minLength: 0)
+                if model.selectedEntry == nil { Spacer(minLength: 0) }
                 HStack {
-                    Text(model.settings.permissionsProfile).font(.caption).foregroundStyle(.secondary)
+                    Text(model.selectedRequest.map { $0.permissionsProfile ?? "Development" } ?? model.settings.permissionsProfile).font(.caption).foregroundStyle(.secondary)
                     Spacer()
-                    Text(model.settings.model + " · " + requestEffortName(model.settings.reasoningEffort)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
+                    Text((model.selectedRequest?.model ?? model.settings.model) + " · " + requestEffortName(model.selectedRequest?.reasoningEffort ?? model.settings.reasoningEffort)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
                 }.padding(.horizontal, 18).padding(.vertical, 10)
+            }
+            if command == "add", picking, let error = model.poolError {
+                Text(error).font(.caption).foregroundStyle(.secondary).lineLimit(2).help(error).padding(.horizontal, 16).padding(.bottom, 8)
             }
             if let error = model.error {
                 Text(error).font(.caption).foregroundStyle(.red).lineLimit(2).help(error)
@@ -282,10 +426,15 @@ struct RequestComposerView: View {
             }
             Divider()
             HStack {
-                Text(LocalizedStringKey(model.choosingProject ? "↑ ↓ Select · Return Choose" : "Shift Return New line")).font(.caption).foregroundStyle(.secondary)
+                Text(LocalizedStringKey(model.receipt != nil ? (command == "add" ? "Return Requests" : "Esc Back") : picking ? "↑ ↓ Select · Return Choose" : model.selectedEntry == nil ? "Shift Return New line" : "Return Append · ⌘ Return Start chat")).font(.caption).foregroundStyle(.secondary)
                 Spacer()
-                if !model.choosingProject && model.receipt == nil {
-                    Button(LocalizedStringKey(command == "proj" ? "Start chat" : "Save request")) { Task { await model.submit(command: command) } }.buttonStyle(.borderedProminent)
+                if model.browsingRequests && !model.choosingProject {
+                    Button("Refresh requests") { Task { await model.refreshPool() } }.disabled(model.poolLoading).accessibilityIdentifier("requests.refreshPool")
+                } else if !model.choosingProject && model.receipt == nil {
+                    if model.selectedEntry != nil {
+                        Button("Start chat") { Task { await model.submit(command: command, consume: true) } }.disabled(model.saving).accessibilityIdentifier("requests.consume")
+                    }
+                    Button(LocalizedStringKey(command == "proj" ? "Start chat" : model.selectedEntry == nil ? "Save request" : "Append")) { Task { await model.submit(command: command) } }.buttonStyle(.borderedProminent)
                         .disabled(model.saving || model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("requests.save")
                 } else { Text("Esc Back").font(.caption).foregroundStyle(.secondary) }
             }.padding(.horizontal, 12).frame(height: 44)
@@ -300,36 +449,44 @@ struct RequestComposerView: View {
                 model.activate(command); index = selectable.first ?? 0
                 setBackspace {
                     guard !model.saving, model.receipt == nil,
-                          model.choosingProject ? filter.isEmpty : model.text.isEmpty else { return false }
+                          picking ? filter.isEmpty : model.text.isEmpty else { return false }
                     goBack(); return true
                 }
                 // The old search field resigns during the view swap. Focus after it is detached.
-                DispatchQueue.main.async { focus = model.choosingProject ? .project : .request }
+                DispatchQueue.main.async { focus = picking ? .project : .request }
             }
-            .task { await model.refresh() }
+            .task { await model.refreshPool(); await model.refresh() }
             .onDisappear { setBackspace(nil); model.persistDraft() }
             .onChange(of: model.choosingProject) { _, choosing in
                 index = selectable.first ?? 0
-                DispatchQueue.main.async { focus = choosing ? .project : .request }
+                DispatchQueue.main.async { focus = picking ? .project : .request }
             }
+            .onChange(of: model.browsingRequests) { _, _ in
+                index = selectable.first ?? 0
+                DispatchQueue.main.async { focus = picking ? .project : .request }
+            }
+            .onChange(of: model.poolEntries.count) { _, _ in index = selectable.first ?? 0 }
+            .onChange(of: model.settings.queueFolder) { _, _ in Task { await model.refreshPool() } }
             .onChange(of: model.snapshot?.fetchedAt) { _, _ in index = selectable.first ?? 0 }
             .onKeyPress(.escape) { goBack(); return .handled }
-            .onKeyPress(.downArrow) { guard model.choosingProject else { return .ignored }; move(1); return .handled }
-            .onKeyPress(.upArrow) { guard model.choosingProject else { return .ignored }; move(-1); return .handled }
+            .onKeyPress(.downArrow) { guard picking else { return .ignored }; move(1); return .handled }
+            .onKeyPress(.upArrow) { guard picking else { return .ignored }; move(-1); return .handled }
             .onKeyPress(keys: [.return], phases: .down) { press in
                 if model.saving { return .handled }
                 let editor = NSApp.keyWindow?.firstResponder as? NSTextView
                 if editor?.hasMarkedText() == true { return .ignored }
                 if press.modifiers.contains(.shift) {
-                    guard !model.choosingProject, model.receipt == nil, let editor else { return .ignored }
+                    guard !picking, model.receipt == nil, focus == .request, let editor, editor.isEditable else { return .ignored }
                     // NSTextField otherwise commits/selects all on Shift Return.
                     editor.insertText("\n", replacementRange: editor.selectedRange())
                     model.text = editor.string
                     return .handled
                 }
-                if model.receipt != nil { close() }
+                if model.receipt != nil { if command == "add", model.selectedProject != nil { goBack() } else { close() } }
                 else if model.choosingProject { if results.indices.contains(index) { pick(results[index]) } }
-                else { Task { await model.submit(command: command) } }
+                else if model.browsingRequests { pickRequest(index) }
+                else if press.modifiers.contains(.command), model.selectedEntry != nil { Task { await model.submit(command: command, consume: true) } }
+                else if !model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty { Task { await model.submit(command: command) } }
                 return .handled
             }
     }

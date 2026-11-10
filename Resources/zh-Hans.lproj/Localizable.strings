@@ -138,7 +138,7 @@
 "Sent to ChatGPT" = "已发送至 ChatGPT";
 "Open chat" = "打开对话";
 "Start chat" = "启动对话";
-"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD 仅保存；PROJ 使用这些预设启动 ChatGPT 对话。";
+"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD 新建或追加项目请求；PROJ 直接发送一次性请求。";
 "Invalid chat receipt." = "对话回执无效。";
 "Cannot lock chat request." = "无法锁定对话请求。";
 "This request is already being sent." = "此请求正在发送。";
@@ -156,3 +156,26 @@
 "Install ChatGPT to start this chat. The request is saved locally." = "请安装 ChatGPT 以启动对话。请求已保存在本机。";
 
 "New request" = "新请求";
+
+"Find requests" = "查找请求";
+"No pending requests" = "没有待处理请求";
+"Append more details" = "追加需求内容";
+"Append" = "追加";
+"Return Append · ⌘ Return Start chat" = "回车追加 · ⌘ 回车开始对话";
+"Refresh requests" = "刷新请求";
+"Some requests could not be read. Original files are preserved." = "部分请求无法读取，原文件已保留。";
+"Invalid queued request path." = "请求文件路径无效。";
+"Cannot read queued request." = "无法读取请求文件。";
+"Invalid queued request file." = "请求文件格式无效。";
+"Choose a project first." = "请先选择项目。";
+"Cannot allocate a unique request filename." = "无法分配不重复的请求文件名。";
+"This request is already sent or needs delivery review." = "此请求已发送，或需要先确认发送状态。";
+"The request changed. Reload it before sending." = "请求已改变，请重新打开后再操作。";
+"Queued request is unavailable." = "此请求不可用。";
+"Preview truncated. The full request is saved." = "预览已截短，完整需求已保存在文件中。";
+
+"Loading requests…" = "正在加载请求…";
+"Requests unavailable" = "请求暂不可用";
+"No matching requests" = "没有匹配的请求";
+
+"Return Requests" = "回车查看请求";
