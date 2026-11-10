@@ -16,6 +16,7 @@ struct Entry: Identifiable {
 }
 
 @MainActor final class Model: ObservableObject {
+    let requests = RequestModel()
     @Published var theme = "Liquid Glass" { didSet { save(\.theme, theme) } }
     @Published var modifier = "⌘" { didSet { save(\.modifier, modifier); if ready && !reloading { registerHotKey() } } }
     @Published var key = "Space" { didSet { save(\.key, key); if ready && !reloading { registerHotKey() } } }
@@ -53,7 +54,7 @@ struct Entry: Identifiable {
     }
     func loadSettings() {
         do {
-            let c = try ConfigStore.read(); let wasReady = ready; let shortcutChanged = modifier != c.modifier || key != c.key; let scanChanged = folderJSON != encode(c.folders) || excludeJSON != encode(c.excluded) || scripts != c.scripts || iconStyle != c.iconStyle; reloading = true
+            let c = try ConfigStore.read(); requests.apply(c.requests); let wasReady = ready; let shortcutChanged = modifier != c.modifier || key != c.key; let scanChanged = folderJSON != encode(c.folders) || excludeJSON != encode(c.excluded) || scripts != c.scripts || iconStyle != c.iconStyle; reloading = true
             if theme != c.theme { theme = c.theme }; if modifier != c.modifier { modifier = c.modifier }; if key != c.key { key = c.key }
             let foldersValue = encode(c.folders), excludedValue = encode(c.excluded)
             if folderJSON != foldersValue { folderJSON = foldersValue }; if excludeJSON != excludedValue { excludeJSON = excludedValue }; if scripts != c.scripts { scripts = c.scripts }; if iconStyle != c.iconStyle { iconStyle = c.iconStyle }; if aliases != c.aliases { aliases = c.aliases }
@@ -330,8 +331,11 @@ struct SearchView: View {
     @ObservedObject var model: Model
     let close: () -> Void
     let resize: (Int) -> Void
+    let resizeRequest: (CGFloat) -> Void
+    let setRequestBackspace: ((() -> Bool)?) -> Void
     @FocusState private var focus: Bool
     @State private var clickedID: String?
+    @State private var requestCommand: String?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var isDark: Bool { colorScheme == .dark }
@@ -367,13 +371,33 @@ struct SearchView: View {
         let match = Text(String(name[range])).underline()
         return Text("\(before)\(match)\(after)")
     }
+    private func enterRequest(_ command: String) { requestCommand = command; model.query = "" }
+    private func returnToSearch() {
+        requestCommand = nil; model.query = ""; focus = false
+        DispatchQueue.main.async { focus = true }
+    }
+    private var typedCommand: String? { ["add", "proj"].first { $0 == model.query.lowercased() } }
     var body: some View {
+        Group {
+            if let command = requestCommand {
+                RequestComposerView(model: model.requests, command: command, font: searchFont, foreground: foreground, selectionColor: selectedBackground, back: returnToSearch, close: close, resize: resizeRequest, setBackspace: setRequestBackspace)
+                    .background {
+                        if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) }
+                        else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) }
+                    }.clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18))
+            } else { searchContent }
+        }
+    }
+    var searchContent: some View {
         VStack(spacing: 0) {
             HStack(spacing: 12) {
                 if nothing { NothingSearchIcon() } else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
                 TextField("", text: $model.query).textFieldStyle(.plain).font(searchFont).foregroundColor(xp ? .white : foreground).accessibilityLabel(Text("Search"))
                     .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search").font(searchFont).foregroundColor(xp ? .white.opacity(0.9) : foreground.opacity(0.65)).allowsHitTesting(false) } }
-                    .focused($focus).onChange(of: model.query) { _,_ in model.selected = 0; clickedID = nil }
+                    .focused($focus).onChange(of: model.query) { _,value in
+                        model.selected = 0; clickedID = nil
+                        if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
+                    }
                     .contextMenu {
                         Button("Cut") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
                         Button("Copy") { NSApp.sendAction(#selector(NSText.copy(_:)), to: nil, from: nil) }
@@ -391,6 +415,11 @@ struct SearchView: View {
                 }
                 .padding(.horizontal, nothing ? 14 : 0).padding(.top, nothing ? 12 : 0)
             if !nothing { Divider() }
+            HStack(spacing: 16) {
+                Button { enterRequest("add") } label: { HStack(spacing: 4) { Text("add").font(.system(.caption, design: .monospaced)); Text("Capture request").font(.caption) } }
+                Button { enterRequest("proj") } label: { HStack(spacing: 4) { Text("proj").font(.system(.caption, design: .monospaced)); Text("Choose project").font(.caption) } }
+                Spacer()
+            }.buttonStyle(.plain).foregroundStyle(.secondary).padding(.horizontal, 18).padding(.vertical, 9)
             ScrollViewReader { proxy in
               ScrollView {
                 LazyVStack(spacing: 2) {
@@ -430,10 +459,11 @@ struct SearchView: View {
                     .strokeBorder(nothing ? foreground.opacity(isDark ? 0.16 : 0.10) : cyber ? Color.red.opacity(isDark ? 0.30 : 0.20) : Color.blue.opacity(isDark ? 0.38 : 0.25), lineWidth: 1)
             }
         }
-        .onAppear { focus = true; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
+        .onAppear { focus = false; DispatchQueue.main.async { focus = true }; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
-        .onKeyPress(.return) { if model.matches.indices.contains(model.selected) { model.run(model.matches[model.selected]); close() }; return .handled }
+        .onKeyPress(.tab) { if let command = typedCommand { enterRequest(command); return .handled }; return .ignored }
+        .onKeyPress(.return) { if let command = typedCommand { enterRequest(command) } else if model.matches.indices.contains(model.selected) { model.run(model.matches[model.selected]); close() }; return .handled }
     }
 }
 
@@ -489,7 +519,7 @@ struct SettingsView: View {
     @State private var aliasPath = ""
     @State private var aliasText = ""
     @State private var confirmResetLearning = false
-    private enum Page: Hashable { case general, apps, aliases, configuration }
+    private enum Page: Hashable { case general, apps, aliases, requests, configuration }
     @State private var page: Page? = .general
     func chooseFolder() { let p = NSOpenPanel(); p.canChooseFiles = false; p.canChooseDirectories = true; p.allowsMultipleSelection = false; if p.runModal() == .OK, let u = p.url, !model.folders.contains(u.path) { model.folderJSON = model.encode(model.folders + [u.path]) } }
     func chooseExcluded() { let p = NSOpenPanel(); p.canChooseDirectories = false; p.canChooseFiles = true; p.allowedContentTypes = [.applicationBundle]; if p.runModal() == .OK, let u = p.url, !model.excluded.contains(u.path) { model.excludeJSON = model.encode(model.excluded + [u.path]) } }
@@ -512,6 +542,7 @@ struct SettingsView: View {
                 Label("General", systemImage: "gearshape").tag(Page.general)
                 Label("Search apps", systemImage: "app.badge.checkmark").tag(Page.apps)
                 Label("App aliases", systemImage: "text.badge.plus").tag(Page.aliases)
+                Label("Requests", systemImage: "tray").tag(Page.requests)
                 Label("Configuration", systemImage: "folder").tag(Page.configuration)
             }.listStyle(.sidebar).navigationSplitViewColumnWidth(min: 160, ideal: 185, max: 230)
         } detail: {
@@ -558,6 +589,7 @@ struct SettingsView: View {
                 }
             }
             }
+            if page == .requests { RequestSettingsView(model: model.requests) }
             if page == .configuration {
             Section("Configuration") { HStack { Button("Import…", action: importSettings); Button("Export…", action: exportSettings) } }
             Section("Commands") { HStack { if model.scripts.isEmpty { Text("No folder selected") } else { Text(model.scripts.replacingOccurrences(of:NSHomeDirectory(), with:"~")).lineLimit(1) }; Spacer(); Button("Choose…", action: chooseScripts) } }
@@ -573,7 +605,13 @@ final class KeyPanel: NSPanel {
     var showSettings: (() -> Void)?
     var excludeSelected: ((UndoManager?) -> Void)?
     var refreshApps: (() -> Void)?
+    var requestBackspace: (() -> Bool)?
     override func sendEvent(_ event: NSEvent) {
+        // The field editor consumes an empty Backspace before SwiftUI onKeyPress.
+        if event.type == .keyDown, event.keyCode == 51,
+           event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
+           let editor = firstResponder as? NSTextView, !editor.hasMarkedText(),
+           requestBackspace?() == true { return }
         if event.type == .keyDown, handleEditingKey(event) { return }
         if event.type == .rightMouseDown, let editor = firstResponder as? NSTextView,
            editor.bounds.contains(editor.convert(event.locationInWindow, from: nil)) {
@@ -642,25 +680,30 @@ final class KeyPanel: NSPanel {
         if panel?.isVisible != true { toggle() }
         return false
     }
+    func applicationWillTerminate(_ notification: Notification) { model.requests.persistDraft() }
     @objc func openSearch() { toggle() }
     @objc func refreshApps() { model.refresh() }
     func toggle() {
         if let p = panel, p.isVisible {
+            model.requests.persistDraft()
             let wasKey = p.isKeyWindow
             p.orderOut(nil)
             if wasKey { return }
         }
         model.query = ""; model.selected = 0
-        let content = SearchView(model: model, close: { [weak self] in self?.panel?.orderOut(nil) }, resize: { [weak self] count in self?.resizePanel(count) })
         let p = KeyPanel(contentRect: NSRect(x: 0,y: 0,width: 560,height: 440), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        let content = SearchView(model: model, close: { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil) }, resize: { [weak self] count in self?.resizePanel(count) }, resizeRequest: { [weak self] height in self?.resizePanelHeight(height) }, setRequestBackspace: { [weak p] callback in p?.requestBackspace = callback })
         p.refreshApps = { [weak self] in self?.model.refresh() }
-        p.showSettings = { [weak self] in self?.panel?.orderOut(nil); self?.openSettings() }
+        p.showSettings = { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil); self?.openSettings() }
         p.excludeSelected = { [weak self] manager in self?.model.excludeSelectedApp(undoManager: manager) }
         p.isFloatingPanel = true; p.level = .floating; p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = true; p.hidesOnDeactivate = !CommandLine.arguments.contains("--preview-fixed"); p.contentView = NSHostingView(rootView: content); p.center(); panel = p; NSApp.activate(ignoringOtherApps: true); p.makeKeyAndOrderFront(nil)
     }
     func resizePanel(_ count: Int) {
+        resizePanelHeight(CGFloat(120 + max(1, min(count, 7)) * 47))
+    }
+    func resizePanelHeight(_ requestedHeight: CGFloat) {
         guard let p = panel else { return }
-        let height = CGFloat(90 + max(1, min(count, 7)) * 47)
+        let height = min(max(150, requestedHeight), (p.screen ?? NSScreen.main)?.visibleFrame.height ?? 900)
         var frame = p.frame; frame.origin.y += frame.height - height; frame.size.height = height
         if abs(p.frame.height - height) > 1 { p.setFrame(frame, display: true) }
     }
