@@ -130,3 +130,5 @@
 "Pending request has different content." = "待写入请求的内容不同，原数据已保留。";
 "Request readback failed." = "请求文件读回验证失败。";
 "The existing draft could not be read and has been preserved." = "无法读取原有草稿，原文件已保留。";
+
+"Search · add request · proj project" = "搜索 · add 记需求 · proj 选项目";

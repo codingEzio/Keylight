@@ -130,3 +130,5 @@
 "Pending request has different content." = "Pending request has different content.";
 "Request readback failed." = "Request readback failed.";
 "The existing draft could not be read and has been preserved." = "The existing draft could not be read and has been preserved.";
+
+"Search · add request · proj project" = "Search · add request · proj project";

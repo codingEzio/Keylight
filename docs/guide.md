@@ -10,7 +10,10 @@ Search also matches letters in order, so `clc` finds Calculator; `cal` initially
 
 Type `add` then Space, Tab or Return to capture a request in the shared inbox.
 Type `proj` then Space, Tab or Return to choose a project before writing. The
-command and selected project become editable chips in the same launcher. Use
+command and selected project become editable chips in the same launcher. All
+states use the existing results area, with one fixed window frame and the same
+Liquid Glass, Cyberpunk 2077, Windows XP or Nothing shell. Command hints live
+in the search placeholder rather than a separate row. Use
 arrows and Return, or click a project. Escape goes back; an empty input also
 supports Backspace. Return saves; Shift Return inserts a line break. Requests
 stay local and do not start a model or coding agent.
