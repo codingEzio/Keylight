@@ -8,15 +8,15 @@ Search also matches letters in order, so `clc` finds Calculator; `cal` initially
 
 ## Local development requests
 
-Type `add` then Space, Tab or Return to capture a request in the shared inbox.
-Type `proj` then Space, Tab or Return to choose a project before writing. The
+Type `add` or `proj` then Space, Tab or Return, choose a project, and write. The
 command and selected project become editable chips in the same launcher. All
 states use the existing results area, with one fixed window frame and the same
 Liquid Glass, Cyberpunk 2077, Windows XP or Nothing shell. Command hints live
 in the search placeholder rather than a separate row. Use
 arrows and Return, or click a project. Escape goes back; an empty input also
-supports Backspace. Return saves; Shift Return inserts a line break. Requests
-stay local and do not start a model or coding agent.
+supports Backspace. Shift Return inserts a line break. Return in `ADD` saves
+without starting AI. Return in `PROJ` saves first, opens the matching ChatGPT
+desktop chat, applies its folder and presets, and sends the request.
 
 In Settings → Requests, choose the queue folder, project root and Godspeed
 Projects endpoint (`/api/projects?group=all`). The default scope is JobOSS, OSS
@@ -25,12 +25,25 @@ repository checkouts and project-level observed checkouts are used; historical
 and former checkouts are ignored. Only existing direct children of the selected
 root are selectable. Missing checkouts remain visible with an explanation.
 Pin projects and use the up action to order them. The model ID and reasoning
-effort are editable; defaults are `gpt-6.1-terra` and `high`. They are stored
-request preferences, not a claim about model availability or account access.
+effort and permission preset are editable; defaults are `gpt-6.1-terra`, `high`
+and `Development`. The named permission profile must exist and be allowed in
+the selected project's ChatGPT configuration. Keylight never substitutes a
+broader permission profile or a different model.
+
+Chat launch uses the installed desktop app's bundled app-server to prepare an
+empty thread, then its local IPC to apply settings and submit through the
+desktop owner. The desktop handles the AI run, approvals and further messages.
+This IPC is an internal desktop interface and may need updating after an app
+upgrade. An unavailable connection keeps the saved request and reports an
+error. A lost send acknowledgement is marked unconfirmed; open that chat to
+check it before creating another request. Automatic retries never resend it.
+Use New request after reviewing an unconfirmed send; its saved files remain.
+Verified with ChatGPT desktop 26.1103.60933 and its bundled CLI 0.166.0.
 
 Each request becomes `<local-date>_<time>-<UUID>/request.md`, with a versioned
 header containing ID, timestamp with timezone, project ID/name/path, model and
-reasoning effort, followed by the exact input text. The local limit is 1 MB per
+reasoning effort and permission preset, followed by the exact input text. A
+`chat.json` receipt records the thread and confirmed turn for `PROJ`. The local limit is 1 MB per
 request. Files use mode 0600 and request directories use 0700. A request is
 acknowledged after file synchronization and readback. Interrupted pending writes
 and retries reuse the request ID; conflicting content preserves the original.
@@ -52,12 +65,16 @@ keylight config requests source 'http://127.0.0.1:50000/api/projects?group=all'
 keylight config requests scope 'joboss,oss,private'
 keylight config requests model gpt-6.1-terra
 keylight config requests effort high
+keylight config requests permissions Development
 keylight config requests pins 'example-project-id'
 keylight projects refresh
 keylight projects list
 keylight request add 'Investigate the startup error'
 keylight request add --project example-project-id 'Fix keyboard navigation'
 ```
+
+The CLI's optional `--project` remains available for existing capture scripts;
+the native `ADD` flow always chooses a project first.
 
 Recheck with `sh Tests/requests_smoke.sh` and
 `python3 Tests/requests_cli_smoke.py` and `sh Tests/request_draft_smoke.sh`;

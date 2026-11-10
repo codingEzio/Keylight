@@ -1,10 +1,11 @@
 #!/bin/sh
 set -eu
 cd "$(dirname "$0")/.."
+jobs=${KEYLIGHT_BUILD_JOBS:-4}
 if [ "${KEYLIGHT_SWIFTPM_NO_SANDBOX:-0}" = 1 ]; then
-    swift build --disable-sandbox -c release -j 4
+    swift build --disable-sandbox -c release -j "$jobs"
 else
-    swift build -c release -j 4
+    swift build -c release -j "$jobs"
 fi
 app="$PWD/dist/Keylight.app"
 mkdir -p "$app/Contents/MacOS" "$app/Contents/Resources"
@@ -29,8 +30,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>Keylight</string>
 <key>CFBundleIdentifier</key><string>com.alex.Keylight</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.1</string>
-<key>CFBundleVersion</key><string>9</string>
+<key>CFBundleShortVersionString</key><string>0.2.2</string>
+<key>CFBundleVersion</key><string>11</string>
 <key>CFBundleIconFile</key><string>Keylight</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
