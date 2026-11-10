@@ -62,11 +62,17 @@ with tempfile.TemporaryDirectory(prefix="keylight-request-cli-") as temporary:
     assert saved.endswith(text) and 'project_id: "fixture"' in saved
     assert 'model: "gpt-6.1-terra"' in saved and 'reasoning_effort: "high"' in saved
     assert 'permission_profile: "Development"' in saved
+    entries = json.loads(run("request", "list", "fixture"))
+    assert len(entries) == 1 and entries[0]["file"] == receipt["file"]
+    assert Path(receipt["file"]).name.startswith("request-")
+    appended = json.loads(run("request", "append", receipt["file"], "Append this detail"))
+    assert appended == receipt and Path(receipt["file"]).read_text().endswith(text + "\n\nAppend this detail")
     inbox = json.loads(run("request", "add", "Inbox request"))
     assert "project_path: null" in Path(inbox["file"]).read_text()
     run("request", "add", "--project", "missing", "do not save", expected=1)
     run("request", "add", " \n", expected=1)
-    assert len(list((root / "Queue").glob("*/request.md"))) == 2
+    assert len(list((root / "Queue").glob("*/request.md"))) == 1
+    assert len(list((root / "Queue").glob("*/request-*.md"))) == 1
     before = run("config", "show")
     run("config", "requests", "effort", "invalid", expected=1)
     run("config", "requests", "wrong-field", "invalid", expected=1)

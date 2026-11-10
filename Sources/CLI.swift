@@ -26,6 +26,8 @@ enum CLI {
       Keylight projects list [TEXT]     List scoped projects and local paths
       Keylight request add [--project ID] TEXT
                                        Persist a local request and print receipt JSON
+      Keylight request list [PROJECT_ID] List unconsumed requests as JSON
+      Keylight request append FILE TEXT Append to an unconsumed request
       Keylight --help                   Show this help
     KEYLIGHT_CONFIG overrides the settings file path.
     """
@@ -87,8 +89,22 @@ enum CLI {
                     project = selected; text = args[4]
                 } else { throw ConfigError.io(help) }
                 let request = try DevelopmentRequest(text: text, project: project, settings: settings)
-                let receipt = try RequestQueue.save(request, folder: settings.queueFolder)
+                let receipt = try project == nil ? RequestQueue.save(request, folder: settings.queueFolder) : RequestPool.save(request, folder: settings.queueFolder)
                 print(String(decoding: try JSONEncoder().encode(receipt), as: UTF8.self)); return 0
+            }
+            if args.count >= 2, args[0] == "request", args[1] == "list", args.count <= 3 {
+                let settings = try ConfigStore.read().requests, snapshot = try RequestPool.scan(folder: settings.queueFolder)
+                let entries = snapshot.entries.filter { args.count == 2 || $0.projectID == args[2] }
+                print(String(decoding: try JSONEncoder().encode(entries), as: UTF8.self))
+                guard snapshot.unreadable.isEmpty else { throw ConfigError.io("Some requests could not be read. Original files are preserved.") }
+                return 0
+            }
+            if args.count == 4, args[0] == "request", args[1] == "append" {
+                let settings = try ConfigStore.read().requests
+                let entry = try RequestPool.locate(file: args[2], folder: settings.queueFolder)
+                let original = try RequestPool.load(entry, folder: settings.queueFolder)
+                let result = try RequestPool.append(args[3], to: original, entry: entry, folder: settings.queueFolder)
+                print(String(decoding: try JSONEncoder().encode(result.1), as: UTF8.self)); return 0
             }
             if args.first == "config" {
                 if args.count == 4, args[1] == "requests" {
