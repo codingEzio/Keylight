@@ -5,6 +5,7 @@
 快速啟動 macOS App 和本機指令。
 搜尋支援縮寫，並在本機依你開啟的 App 調整排序。
 
+輸入 `add` 記下本機需求，或用 `proj` 先選專案。可在「設定 → 請求」調整專案範圍、置頂順序、模型與佇列。請求以文字檔儲存，不會啟動模型。
 
 ![Keylight search](docs/images/search.png)
 

@@ -5,6 +5,7 @@
 A fast macOS launcher for apps and local commands.
 Search matches abbreviations and learns from your app choices on this Mac.
 
+Type `add` to capture a local request, or `proj` to choose a project first. Configure the project scope, pins, model and queue in Settings → Requests. Requests are plain text files; no model is started.
 
 ![Keylight search](docs/images/search.png)
 
