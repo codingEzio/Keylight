@@ -19,6 +19,13 @@ enum CLI {
       Keylight config icons Original|System
       Keylight config alias add|remove APP_PATH ALIAS
       Keylight config learning reset    Reset learned search ranking
+      Keylight config requests FIELD VALUE
+        FIELD: root, source, queue, model, effort, scope, pins
+        scope and pins use comma-separated values
+      Keylight projects refresh         Refresh the local Godspeed catalog
+      Keylight projects list [TEXT]     List scoped projects and local paths
+      Keylight request add [--project ID] TEXT
+                                       Persist a local request and print receipt JSON
       Keylight --help                   Show this help
     KEYLIGHT_CONFIG overrides the settings file path.
     """
@@ -51,7 +58,55 @@ enum CLI {
     static func run(_ args: [String]) -> Int32 {
         do {
             if args == ["--help"] || args == ["help"] { print(help); return 0 }
+            if args.first == "projects" {
+                let settings = try ConfigStore.read().requests
+                if args == ["projects", "refresh"] {
+                    let snapshot = try ProjectCatalog.fetchBlocking(source: settings.catalogURL)
+                    try ProjectCatalog.save(snapshot)
+                    print("\(snapshot.projects.count) projects cached")
+                    return 0
+                }
+                if args.count >= 2, args.count <= 3, args[1] == "list" {
+                    let cache = try ProjectCatalog.load(source: settings.catalogURL)
+                    guard cache != nil else { throw ConfigError.io("No project cache; run projects refresh.") }
+                    for item in ProjectCatalog.localProjects(cache, settings: settings, query: args.count == 3 ? args[2] : "") {
+                        print("\(item.project.id)\t\(item.project.name)\t\(item.project.category)\t\(item.path ?? "unavailable")")
+                    }
+                    return 0
+                }
+            }
+            if args.count >= 2, args[0] == "request", args[1] == "add" {
+                let settings = try ConfigStore.read().requests
+                var project: LocalProject?
+                let text: String
+                if args.count == 3 { text = args[2] }
+                else if args.count == 5, args[2] == "--project" {
+                    let cache = try ProjectCatalog.load(source: settings.catalogURL)
+                    let matches = ProjectCatalog.localProjects(cache, settings: settings).filter { $0.project.id == args[3] || $0.path == args[3] }
+                    guard matches.count == 1, let selected = matches.first, selected.path != nil else { throw ConfigError.io("Choose one available project ID or checkout path.") }
+                    project = selected; text = args[4]
+                } else { throw ConfigError.io(help) }
+                let request = try DevelopmentRequest(text: text, project: project, settings: settings)
+                let receipt = try RequestQueue.save(request, folder: settings.queueFolder)
+                print(String(decoding: try JSONEncoder().encode(receipt), as: UTF8.self)); return 0
+            }
             if args.first == "config" {
+                if args.count == 4, args[1] == "requests" {
+                    guard ["root", "source", "queue", "model", "effort", "scope", "pins"].contains(args[2]) else { throw ConfigError.io(help) }
+                    try ConfigStore.update { config in
+                        switch args[2] {
+                        case "root": config.requests.projectRoot = args[3]
+                        case "source": config.requests.catalogURL = args[3]
+                        case "queue": config.requests.queueFolder = args[3]
+                        case "model": config.requests.model = args[3]
+                        case "effort": config.requests.reasoningEffort = args[3]
+                        case "scope": config.requests.categories = args[3].split(separator: ",").map(String.init)
+                        case "pins": config.requests.pinnedProjects = args[3].split(separator: ",").map(String.init)
+                        default: break
+                        }
+                    }
+                    return 0
+                }
                 if args == ["config", "learning", "reset"] { try SearchHistoryStore.reset(); return 0 }
                 if args.count == 2 && args[1] == "show" { print(String(decoding: try ConfigStore.encode(ConfigStore.read()), as: UTF8.self)); return 0 }
                 if args.count == 3 && args[1] == "export" { let c = try ConfigStore.read(); try ConfigStore.encode(c).write(to: URL(fileURLWithPath: args[2]), options: .atomic); return 0 }
