@@ -13,9 +13,12 @@ import Combine
     @Published var selectedProject: LocalProject?
     @Published var choosingProject = false
     @Published var receipt: RequestReceipt?
+    @Published private(set) var chatURL: URL?
+    @Published private(set) var delivery = "Saved locally"
     private var pending: DevelopmentRequest?
+    private var pendingReceipt: RequestReceipt?
     private var unreadDraft = false
-    private struct Draft: Codable { let text: String?; let project: LocalProject?; let pending: DevelopmentRequest? }
+    private struct Draft: Codable { let text: String?; let project: LocalProject?; let pending: DevelopmentRequest?; let receipt: RequestReceipt? }
     private var draftURL: URL { ConfigStore.file.appendingPathExtension("request-draft.json") }
 
     init() {
@@ -30,7 +33,7 @@ import Combine
                 // JSON can escape one byte into six; the request body is stored only once.
                 guard data.count <= 6_100_000 else { throw ConfigError.invalid }
                 let draft = try JSONDecoder().decode(Draft.self, from: data)
-                text = draft.text ?? draft.pending?.text ?? ""; selectedProject = draft.project; pending = draft.pending
+                text = draft.text ?? draft.pending?.text ?? ""; selectedProject = draft.project; pending = draft.pending; pendingReceipt = draft.receipt
             }
         } catch { unreadDraft = true; self.error = NSLocalizedString("The existing draft could not be read and has been preserved.", comment: "") }
     }
@@ -60,9 +63,17 @@ import Combine
         } catch { if settings.catalogURL == source { catalogError = NSLocalizedString(error.localizedDescription, comment: "") } }
     }
     func activate(_ command: String) {
-        receipt = nil; error = nil
-        if command == "add" { selectedProject = nil; choosingProject = false }
-        else { choosingProject = selectedProject == nil || text.isEmpty }
+        receipt = nil; error = nil; chatURL = nil; delivery = "Saved locally"
+        choosingProject = selectedProject == nil || text.isEmpty
+        if let pendingReceipt {
+            do {
+                if let state = try ChatLaunchSession.readState(pendingReceipt), state.phase != .prepared {
+                    receipt = pendingReceipt; chatURL = state.url
+                    delivery = state.phase == .sent ? "Sent to ChatGPT" : "Sending could not be confirmed. Open the chat before sending again."
+                    if state.phase == .sent { clearDraft() }
+                }
+            } catch { self.error = NSLocalizedString(error.localizedDescription, comment: "") }
+        }
     }
     func persistDraft() {
         do { try writeDraft() } catch { self.error = NSLocalizedString(error.localizedDescription, comment: "") }
@@ -73,25 +84,64 @@ import Combine
             LocalProject(project: CatalogProject(id: project.project.id, name: project.project.name, summary: "", category: project.project.category, paths: project.path.map { [$0] } ?? []), path: project.path)
         }
         let storedPending = pending?.text == text ? pending : nil
-        let data = try JSONEncoder().encode(Draft(text: storedPending == nil ? text : nil, project: storedProject, pending: storedPending))
+        let data = try JSONEncoder().encode(Draft(text: storedPending == nil ? text : nil, project: storedProject, pending: storedPending, receipt: storedPending == nil ? nil : pendingReceipt))
         try ConfigStore.withLock { try privateAtomicWrite(data, to: draftURL) }
     }
-    func submit() async {
+    private func clearDraft() {
+        text = ""; pending = nil; pendingReceipt = nil; selectedProject = nil
+        persistDraft()
+    }
+    func startNew() {
+        guard !saving else { return }
+        error = nil; clearDraft()
+        receipt = nil; chatURL = nil; delivery = "Saved locally"; choosingProject = true
+    }
+    private func openChat(_ url: URL, app: URL) async throws {
+        try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<Void, Error>) in
+            NSWorkspace.shared.open([url], withApplicationAt: app, configuration: NSWorkspace.OpenConfiguration()) { _, error in
+                if let error { continuation.resume(throwing: error) } else { continuation.resume() }
+            }
+        }
+    }
+    func reopenChat() {
+        guard let chatURL else { return }
+        guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") else { error = NSLocalizedString("Install ChatGPT to start this chat. The request is saved locally.", comment: ""); return }
+        Task { do { try await openChat(chatURL, app: app) } catch { self.error = error.localizedDescription } }
+    }
+    func submit(command: String = "add") async {
         guard !saving else { return }
         do {
-            if let project = selectedProject {
-                guard projects.contains(where: { $0.id == project.id && $0.path != nil }) else { throw ConfigError.io(NSLocalizedString("Project checkout is unavailable or outside the selected scope.", comment: "")) }
+            if let pendingReceipt, let state = try ChatLaunchSession.readState(pendingReceipt), state.phase != .prepared {
+                activate(command); return
             }
+            guard let project = selectedProject,
+                  projects.contains(where: { $0.id == project.id && $0.path == project.path && $0.path != nil }) else { throw ConfigError.io(NSLocalizedString("Project checkout is unavailable or outside the selected scope.", comment: "")) }
             let request: DevelopmentRequest
-            if let pending, pending.text == text, pending.projectID == selectedProject?.project.id, pending.projectPath == selectedProject?.path, pending.model == settings.model, pending.reasoningEffort == settings.reasoningEffort { request = pending }
-            else { request = try DevelopmentRequest(text: text, project: selectedProject, settings: settings); pending = request }
+            if let pending, pending.text == text, pending.projectID == selectedProject?.project.id, pending.projectPath == selectedProject?.path, pending.model == settings.model, pending.reasoningEffort == settings.reasoningEffort, (pending.permissionsProfile ?? "Development") == settings.permissionsProfile { request = pending }
+            else { request = try DevelopmentRequest(text: text, project: selectedProject, settings: settings); pending = request; pendingReceipt = nil }
             try writeDraft()
             saving = true; defer { saving = false }
             let folder = settings.queueFolder
-            let result = try await Task.detached(priority: .userInitiated) { try RequestQueue.save(request, folder: folder) }.value
-            receipt = result; text = ""; pending = nil; selectedProject = nil; error = nil
-            persistDraft()
-        } catch { self.error = NSLocalizedString(error.localizedDescription, comment: "") }
+            let result: RequestReceipt
+            if let pendingReceipt { result = pendingReceipt }
+            else { result = try await Task.detached(priority: .userInitiated) { try RequestQueue.save(request, folder: folder) }.value; pendingReceipt = result; try writeDraft() }
+            if command == "proj" {
+                guard let app = NSWorkspace.shared.urlForApplication(withBundleIdentifier: "com.openai.codex") else { throw ConfigError.io("Install ChatGPT to start this chat. The request is saved locally.") }
+                let executable = app.appendingPathComponent("Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex")
+                let codexHome = ProcessInfo.processInfo.environment["CODEX_HOME"] ?? NSHomeDirectory() + "/.codex"
+                let session = try await Task.detached(priority: .userInitiated) { try ChatLaunchSession(request: request, receipt: result, executable: executable, socketPath: codexHome + "/ipc/ipc.sock") }.value
+                chatURL = session.state.url
+                try await openChat(session.state.url, app: app)
+                _ = try await Task.detached(priority: .userInitiated) { try session.send() }.value
+                delivery = "Sent to ChatGPT"
+            } else { delivery = "Saved locally" }
+            receipt = result; error = nil; clearDraft()
+        } catch {
+            self.error = NSLocalizedString(error.localizedDescription, comment: "")
+            if let pendingReceipt, let state = try? ChatLaunchSession.readState(pendingReceipt), state.phase == .dispatching {
+                receipt = pendingReceipt; chatURL = state.url; delivery = "Sending could not be confirmed. Open the chat before sending again."
+            }
+        }
     }
 }
 
@@ -132,7 +182,7 @@ struct RequestComposerView: View {
     }
     private func goBack() {
         if model.saving { return }
-        if command == "proj" && !model.choosingProject && model.receipt == nil { model.choosingProject = true; filter = "" }
+        if !model.choosingProject && model.receipt == nil { model.choosingProject = true; filter = "" }
         else { model.persistDraft(); back() }
     }
     private var header: some View {
@@ -156,7 +206,7 @@ struct RequestComposerView: View {
                     .onChange(of: filter) { _, _ in index = selectable.first ?? 0 }
             } else { Spacer(minLength: 0) }
             if model.loading || model.saving { ProgressView().controlSize(.small) }
-        }
+        }.disabled(model.saving)
     }
     private var projectResults: some View {
         ScrollViewReader { proxy in
@@ -190,9 +240,14 @@ struct RequestComposerView: View {
         VStack(spacing: 0) {
             if let receipt = model.receipt {
                 VStack(alignment: .leading, spacing: 10) {
-                    Label("Saved locally", systemImage: "checkmark.circle").font(appearance.rowFont)
+                    Label(LocalizedStringKey(model.delivery), systemImage: model.delivery == "Saved locally" || model.delivery == "Sent to ChatGPT" ? "checkmark.circle" : "questionmark.circle").font(appearance.rowFont)
                     Text(receipt.file.replacingOccurrences(of: NSHomeDirectory(), with: "~")).font(.system(.caption, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
-                    HStack { Button("Reveal request") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: receipt.file)]) }; Button("Done", action: close).keyboardShortcut(.return, modifiers: []) }
+                    HStack {
+                        if model.chatURL != nil { Button("Open chat") { model.reopenChat() } }
+                        Button("Reveal request") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: receipt.file)]) }
+                        Button("New request") { model.startNew(); filter = ""; index = selectable.first ?? 0 }
+                        Button("Done", action: close).keyboardShortcut(.return, modifiers: [])
+                    }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
                 Spacer(minLength: 0)
             } else if model.choosingProject {
@@ -204,7 +259,7 @@ struct RequestComposerView: View {
                     .accessibilityIdentifier("requests.text").disabled(model.saving)
                 Spacer(minLength: 0)
                 HStack {
-                    if model.selectedProject == nil { Text("Inbox").foregroundStyle(.secondary) }
+                    Text(model.settings.permissionsProfile).font(.caption).foregroundStyle(.secondary)
                     Spacer()
                     Text(model.settings.model + " · " + requestEffortName(model.settings.reasoningEffort)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
                 }.padding(.horizontal, 18).padding(.vertical, 10)
@@ -230,7 +285,7 @@ struct RequestComposerView: View {
                 Text(LocalizedStringKey(model.choosingProject ? "↑ ↓ Select · Return Choose" : "Shift Return New line")).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if !model.choosingProject && model.receipt == nil {
-                    Button("Save request") { Task { await model.submit() } }.buttonStyle(.borderedProminent)
+                    Button(LocalizedStringKey(command == "proj" ? "Start chat" : "Save request")) { Task { await model.submit(command: command) } }.buttonStyle(.borderedProminent)
                         .disabled(model.saving || model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("requests.save")
                 } else { Text("Esc Back").font(.caption).foregroundStyle(.secondary) }
             }.padding(.horizontal, 12).frame(height: 44)
@@ -262,6 +317,7 @@ struct RequestComposerView: View {
             .onKeyPress(.downArrow) { guard model.choosingProject else { return .ignored }; move(1); return .handled }
             .onKeyPress(.upArrow) { guard model.choosingProject else { return .ignored }; move(-1); return .handled }
             .onKeyPress(keys: [.return], phases: .down) { press in
+                if model.saving { return .handled }
                 let editor = NSApp.keyWindow?.firstResponder as? NSTextView
                 if editor?.hasMarkedText() == true { return .ignored }
                 if press.modifiers.contains(.shift) {
@@ -273,7 +329,7 @@ struct RequestComposerView: View {
                 }
                 if model.receipt != nil { close() }
                 else if model.choosingProject { if results.indices.contains(index) { pick(results[index]) } }
-                else { Task { await model.submit() } }
+                else { Task { await model.submit(command: command) } }
                 return .handled
             }
     }
@@ -294,7 +350,8 @@ struct RequestSettingsView: View {
             HStack { Text("Request folder"); Spacer(); Text(value.queueFolder.isEmpty ? NSLocalizedString("Not configured", comment: "") : value.queueFolder.replacingOccurrences(of: NSHomeDirectory(), with: "~")).lineLimit(1).truncationMode(.middle); Button("Choose…") { choose(\.queueFolder) } }
             TextField("Default model", text: $value.model).accessibilityIdentifier("requests.model")
             Picker("Reasoning effort", selection: $value.reasoningEffort) { ForEach(RequestSettings.effortOptions, id: \.self) { Text(requestEffortName($0)).tag($0) } }
-            Text("Requests are saved locally. No model is started.").font(.caption).foregroundStyle(.secondary)
+            TextField("Permission preset", text: $value.permissionsProfile).accessibilityIdentifier("requests.permissions")
+            Text("ADD saves locally. PROJ starts a ChatGPT chat with these presets.").font(.caption).foregroundStyle(.secondary)
         }
         Section("Projects") {
             HStack { Text("Project root"); Spacer(); Text(value.projectRoot.isEmpty ? NSLocalizedString("Not configured", comment: "") : value.projectRoot.replacingOccurrences(of: NSHomeDirectory(), with: "~")).lineLimit(1).truncationMode(.middle); Button("Choose…") { choose(\.projectRoot) } }

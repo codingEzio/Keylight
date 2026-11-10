@@ -131,4 +131,28 @@
 "Request readback failed." = "請求檔案讀回驗證失敗。";
 "The existing draft could not be read and has been preserved." = "無法讀取原有草稿，原檔案已保留。";
 
-"Search · add request · proj project" = "搜尋 · add 記需求 · proj 選專案";
+"Search · add request · proj project" = "搜尋 · add 暫存 · proj 聊天";
+
+"Permission preset" = "權限預設";
+
+"Sent to ChatGPT" = "已傳送至 ChatGPT";
+"Open chat" = "開啟聊天";
+"Start chat" = "啟動聊天";
+"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD 僅儲存；PROJ 使用這些預設啟動 ChatGPT 聊天。";
+"Invalid chat receipt." = "聊天回執無效。";
+"Cannot lock chat request." = "無法鎖定聊天請求。";
+"This request is already being sent." = "此請求正在傳送。";
+"The requested permission preset is unavailable. Check ChatGPT Settings." = "所選權限預設無法使用，請檢查 ChatGPT 設定。";
+"ChatGPT did not confirm the requested folder or preset." = "ChatGPT 未確認指定的資料夾或預設。";
+"Sending could not be confirmed. Open the chat before sending again." = "無法確認是否已傳送；再次傳送前請先查看聊天。";
+"ChatGPT has not opened this chat yet. The request is saved; try again." = "ChatGPT 尚未開啟此聊天。請求已儲存，請重試。";
+"Chat request is too large." = "聊天請求過大。";
+"Chat connection closed." = "聊天連線已中斷。";
+"Invalid chat response." = "聊天回應無效。";
+"Chat connection timed out." = "聊天連線逾時。";
+"ChatGPT could not prepare this chat. Check its sign-in and preset." = "ChatGPT 無法準備此聊天，請檢查登入狀態與預設。";
+"ChatGPT desktop connection is unavailable." = "無法連接 ChatGPT 桌面端。";
+"ChatGPT could not accept this request. Open the chat to check its status." = "ChatGPT 未接受此請求，請開啟聊天查看狀態。";
+"Install ChatGPT to start this chat. The request is saved locally." = "請安裝 ChatGPT 以啟動聊天。請求已儲存在本機。";
+
+"New request" = "新請求";

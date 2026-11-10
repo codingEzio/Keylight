@@ -131,4 +131,28 @@
 "Request readback failed." = "Request readback failed.";
 "The existing draft could not be read and has been preserved." = "The existing draft could not be read and has been preserved.";
 
-"Search · add request · proj project" = "Search · add request · proj project";
+"Search · add request · proj project" = "Search · add queue · proj chat";
+
+"Permission preset" = "Permission preset";
+
+"Sent to ChatGPT" = "Sent to ChatGPT";
+"Open chat" = "Open chat";
+"Start chat" = "Start chat";
+"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD saves locally. PROJ starts a ChatGPT chat with these presets.";
+"Invalid chat receipt." = "Invalid chat receipt.";
+"Cannot lock chat request." = "Cannot lock chat request.";
+"This request is already being sent." = "This request is already being sent.";
+"The requested permission preset is unavailable. Check ChatGPT Settings." = "The requested permission preset is unavailable. Check ChatGPT Settings.";
+"ChatGPT did not confirm the requested folder or preset." = "ChatGPT did not confirm the requested folder or preset.";
+"Sending could not be confirmed. Open the chat before sending again." = "Sending could not be confirmed. Open the chat before sending again.";
+"ChatGPT has not opened this chat yet. The request is saved; try again." = "ChatGPT has not opened this chat yet. The request is saved; try again.";
+"Chat request is too large." = "Chat request is too large.";
+"Chat connection closed." = "Chat connection closed.";
+"Invalid chat response." = "Invalid chat response.";
+"Chat connection timed out." = "Chat connection timed out.";
+"ChatGPT could not prepare this chat. Check its sign-in and preset." = "ChatGPT could not prepare this chat. Check its sign-in and preset.";
+"ChatGPT desktop connection is unavailable." = "ChatGPT desktop connection is unavailable.";
+"ChatGPT could not accept this request. Open the chat to check its status." = "ChatGPT could not accept this request. Open the chat to check its status.";
+"Install ChatGPT to start this chat. The request is saved locally." = "Install ChatGPT to start this chat. The request is saved locally.";
+
+"New request" = "New request";

@@ -131,4 +131,28 @@
 "Request readback failed." = "请求文件读回验证失败。";
 "The existing draft could not be read and has been preserved." = "无法读取原有草稿，原文件已保留。";
 
-"Search · add request · proj project" = "搜索 · add 记需求 · proj 选项目";
+"Search · add request · proj project" = "搜索 · add 暂存 · proj 对话";
+
+"Permission preset" = "权限预设";
+
+"Sent to ChatGPT" = "已发送至 ChatGPT";
+"Open chat" = "打开对话";
+"Start chat" = "启动对话";
+"ADD saves locally. PROJ starts a ChatGPT chat with these presets." = "ADD 仅保存；PROJ 使用这些预设启动 ChatGPT 对话。";
+"Invalid chat receipt." = "对话回执无效。";
+"Cannot lock chat request." = "无法锁定对话请求。";
+"This request is already being sent." = "此请求正在发送。";
+"The requested permission preset is unavailable. Check ChatGPT Settings." = "所选权限预设不可用，请检查 ChatGPT 设置。";
+"ChatGPT did not confirm the requested folder or preset." = "ChatGPT 未确认指定的文件夹或预设。";
+"Sending could not be confirmed. Open the chat before sending again." = "无法确认是否已发送；再次发送前请先查看对话。";
+"ChatGPT has not opened this chat yet. The request is saved; try again." = "ChatGPT 尚未打开此对话。请求已保存，请重试。";
+"Chat request is too large." = "对话请求过大。";
+"Chat connection closed." = "对话连接已断开。";
+"Invalid chat response." = "对话响应无效。";
+"Chat connection timed out." = "对话连接超时。";
+"ChatGPT could not prepare this chat. Check its sign-in and preset." = "ChatGPT 无法准备此对话，请检查登录状态与预设。";
+"ChatGPT desktop connection is unavailable." = "无法连接 ChatGPT 桌面端。";
+"ChatGPT could not accept this request. Open the chat to check its status." = "ChatGPT 未接受此请求，请打开对话查看状态。";
+"Install ChatGPT to start this chat. The request is saved locally." = "请安装 ChatGPT 以启动对话。请求已保存在本机。";
+
+"New request" = "新请求";
