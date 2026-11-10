@@ -11,6 +11,7 @@ struct KeylightConfig: Codable {
     var scripts = ""
     var aliases: [String: [String]] = [:]
     var iconStyle = "Original"
+    var requests = RequestSettings()
     // These default folders may legitimately not exist on a new macOS account.
     // Keep them configured so they are scanned if the user creates them later.
     static func missingOptionalDefaultFolder(_ path: String, home: String = NSHomeDirectory()) -> Bool {
@@ -18,7 +19,7 @@ struct KeylightConfig: Codable {
         var info = stat()
         return lstat(path, &info) != 0 && errno == ENOENT
     }
-    private enum CodingKeys: String, CodingKey { case version, theme, modifier, key, folders, excluded, scripts, aliases, iconStyle }
+    private enum CodingKeys: String, CodingKey { case version, theme, modifier, key, folders, excluded, scripts, aliases, iconStyle, requests }
     init() {}
     init(from decoder: Decoder) throws {
         let c = try decoder.container(keyedBy: CodingKeys.self)
@@ -31,8 +32,10 @@ struct KeylightConfig: Codable {
         scripts = try c.decode(String.self, forKey: .scripts)
         aliases = try c.decodeIfPresent([String: [String]].self, forKey: .aliases) ?? [:]
         iconStyle = try c.decodeIfPresent(String.self, forKey: .iconStyle) ?? "Original"
+        requests = try c.decodeIfPresent(RequestSettings.self, forKey: .requests) ?? RequestSettings()
     }
     func validate() throws {
+        try requests.validate()
         guard version == 1,
               ["Liquid Glass", "Cyberpunk 2077", "Windows XP", "Nothing"].contains(theme),
               ["⌘", "⌥", "⌃", "⌘ ⇧", "⌘ ⌥", "⌃ ⌥", "⌘ ⌥ ⇧"].contains(modifier),

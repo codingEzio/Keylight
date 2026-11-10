@@ -34,7 +34,7 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
         return p.stdout
     assert "config import" in run("--help"); run("unknown-command", expected=1)
     run("config", "import", str(source))
-    config.update({"aliases": {}, "iconStyle": "Original"})
+    config.update({"aliases": {}, "iconStyle": "Original", "requests": {"projectRoot": "", "catalogURL": "", "queueFolder": "", "categories": ["joboss", "oss", "private"], "pinnedProjects": [], "model": "gpt-6.1-terra", "reasoningEffort": "high"}})
     assert json.loads(run("config", "show")) == config
     results = run("search")
     assert "Alpha\t" in results and "Hidden\t" not in results and "DotApp\t" in results and "Hello\t" in results
