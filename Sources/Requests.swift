@@ -158,7 +158,7 @@ func privateAtomicWrite(_ data: Data, to destination: URL) throws {
     guard fsync(fd) == 0, rename(temporary.path, destination.path) == 0 else { throw ConfigError.io("Cannot persist request file.") }
     try syncRequestDirectory(destination.deletingLastPathComponent())
 }
-private func syncRequestDirectory(_ url: URL) throws {
+func syncRequestDirectory(_ url: URL) throws {
     let fd = open(url.path, O_RDONLY | O_DIRECTORY | O_NOFOLLOW)
     guard fd >= 0 else { throw ConfigError.io("Cannot open request directory.") }; defer { close(fd) }
     guard fsync(fd) == 0 else { throw ConfigError.io("Cannot persist request directory.") }
@@ -176,6 +176,18 @@ struct DevelopmentRequest: Codable, Sendable {
     // Missing in requests saved before permission presets were supported.
     let permissionsProfile: String?
     let text: String
+    func appending(_ addition: String) throws -> DevelopmentRequest {
+        guard !addition.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { throw ConfigError.io("Enter a request of up to 1 MB.") }
+        let body = text + "\n\n" + addition
+        guard body.utf8.count <= 1_000_000 else { throw ConfigError.io("Enter a request of up to 1 MB.") }
+        return DevelopmentRequest(copying: self, text: body)
+    }
+    private init(copying original: DevelopmentRequest, text: String) {
+        id = original.id; createdAt = original.createdAt; timeZoneIdentifier = original.timeZoneIdentifier
+        projectID = original.projectID; projectName = original.projectName; projectPath = original.projectPath
+        model = original.model; reasoningEffort = original.reasoningEffort; permissionsProfile = original.permissionsProfile
+        self.text = text
+    }
     init(text: String, project: LocalProject?, settings: RequestSettings, id: UUID = UUID(), createdAt: Date = Date()) throws {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf8.count <= 1_000_000 else { throw ConfigError.io("Enter a request of up to 1 MB.") }
         try settings.validate()

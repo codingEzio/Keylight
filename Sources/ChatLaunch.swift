@@ -19,26 +19,42 @@ final class ChatLaunchSession: @unchecked Sendable {
     private let socketPath: String
 
     static func stateFile(_ receipt: RequestReceipt) -> URL {
-        URL(fileURLWithPath: receipt.file).deletingLastPathComponent().appendingPathComponent("chat.json")
+        let file = URL(fileURLWithPath: receipt.file)
+        return file.lastPathComponent == "request.md" ? file.deletingLastPathComponent().appendingPathComponent("chat.json") : file.appendingPathExtension("chat.json")
+    }
+    static func lockFile(_ receipt: RequestReceipt) -> URL {
+        let file = URL(fileURLWithPath: receipt.file)
+        return file.lastPathComponent == "request.md" ? file.deletingLastPathComponent().appendingPathComponent(".chat.lock") : file.deletingLastPathComponent().appendingPathComponent("." + file.lastPathComponent + ".chat.lock")
     }
     static func readState(_ receipt: RequestReceipt) throws -> ChatLaunchState? {
         let file = stateFile(receipt)
-        guard FileManager.default.fileExists(atPath: file.path) else { return nil }
-        let data = try Data(contentsOf: file)
+        let fd = open(file.path, O_RDONLY | O_NOFOLLOW)
+        if fd < 0, errno == ENOENT { return nil }
+        guard fd >= 0 else { throw ConfigError.io("Invalid chat receipt.") }
+        let handle = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
+        var info = stat()
+        guard fstat(fd, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_uid == geteuid(), info.st_size <= 8192 else { throw ConfigError.io("Invalid chat receipt.") }
+        let data = try handle.read(upToCount: 8193) ?? Data()
         guard data.count <= 8192 else { throw ConfigError.io("Invalid chat receipt.") }
         let state = try JSONDecoder().decode(ChatLaunchState.self, from: data)
         guard UUID(uuidString: state.threadID) != nil else { throw ConfigError.io("Invalid chat receipt.") }
         return state
     }
     init(request: DevelopmentRequest, receipt: RequestReceipt, executable: URL, socketPath: String) throws {
-        guard let path = request.projectPath, FileManager.default.fileExists(atPath: path),
-              try Data(contentsOf: URL(fileURLWithPath: receipt.file)) == request.data else { throw ConfigError.io("Project checkout is unavailable or outside the selected scope.") }
+        guard let path = request.projectPath, FileManager.default.fileExists(atPath: path) else { throw ConfigError.io("Project checkout is unavailable or outside the selected scope.") }
         self.request = request; self.socketPath = socketPath; stateURL = Self.stateFile(receipt)
-        let fd = open(stateURL.deletingLastPathComponent().appendingPathComponent(".chat.lock").path, O_CREAT | O_RDWR | O_NOFOLLOW, S_IRUSR | S_IWUSR)
+        let fd = open(Self.lockFile(receipt).path, O_CREAT | O_RDWR | O_NOFOLLOW, S_IRUSR | S_IWUSR)
         guard fd >= 0 else { throw ConfigError.io("Cannot lock chat request.") }
         guard flock(fd, LOCK_EX | LOCK_NB) == 0 else { close(fd); throw ConfigError.io("This request is already being sent.") }
         lock = FileHandle(fileDescriptor: fd, closeOnDealloc: true)
         do {
+            let expected = request.data
+            let input = open(receipt.file, O_RDONLY | O_NOFOLLOW)
+            guard input >= 0 else { throw ConfigError.io("The request changed. Reload it before sending.") }
+            let handle = FileHandle(fileDescriptor: input, closeOnDealloc: true)
+            var info = stat()
+            guard fstat(input, &info) == 0, info.st_mode & S_IFMT == S_IFREG, info.st_size == expected.count,
+                  try handle.read(upToCount: expected.count + 1) == expected else { throw ConfigError.io("The request changed. Reload it before sending.") }
             if let saved = try Self.readState(receipt) { state = saved; return }
             let server = try LocalAppServer(executable: executable, directory: path)
             defer { server.close() }
@@ -201,7 +217,7 @@ final class LocalAppServer {
         channel = ChatJSONChannel(input: incoming.fileHandleForReading.fileDescriptor, output: outgoing.fileHandleForWriting.fileDescriptor, framing: .line)
         try process.run()
         do {
-            _ = try call("initialize", ["clientInfo": ["name": "keylight", "version": "0.2.2"], "capabilities": ["experimentalApi": true]])
+            _ = try call("initialize", ["clientInfo": ["name": "keylight", "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "development"], "capabilities": ["experimentalApi": true]])
             try channel.write(["method": "initialized", "params": [:]])
         } catch { close(); throw error }
     }

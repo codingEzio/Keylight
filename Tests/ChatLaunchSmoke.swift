@@ -16,7 +16,7 @@ import Darwin
         var settings = RequestSettings(); settings.queueFolder = base.appendingPathComponent("Queue").path
         let project = LocalProject(project: CatalogProject(id: "example", name: "Example", summary: "", category: "oss", paths: [base.path]), path: base.path)
         let request = try DevelopmentRequest(text: "  exact request 🧩\n", project: project, settings: settings)
-        let receipt = try RequestQueue.save(request, folder: settings.queueFolder)
+        let receipt = try RequestPool.save(request, folder: settings.queueFolder)
         let stateFile = ChatLaunchSession.stateFile(receipt)
         var session: ChatLaunchSession? = try ChatLaunchSession(request: request, receipt: receipt, executable: executable, socketPath: base.appendingPathComponent("desktop.sock").path)
         require(session?.state.phase == .prepared, "thread not prepared")
@@ -44,6 +44,7 @@ import Darwin
                 do { _ = try session!.send(); fatalError("uncertain send repeated") } catch {}
             } else {
                 require(try session!.send().phase == .sent, "send did not complete")
+                require(try RequestPool.scan(folder: settings.queueFolder).entries.isEmpty, "sent request remains pending")
                 session = nil
                 session = try ChatLaunchSession(request: request, receipt: receipt, executable: executable, socketPath: "must-not-reconnect")
                 require(try session!.send().turnID == "fixture-turn", "restart lost receipt")
