@@ -330,40 +330,13 @@ struct ThemeAtmosphere: View {
 struct SearchView: View {
     @ObservedObject var model: Model
     let close: () -> Void
-    let resize: (Int) -> Void
-    let resizeRequest: (CGFloat) -> Void
     let setRequestBackspace: ((() -> Bool)?) -> Void
     @FocusState private var focus: Bool
     @State private var clickedID: String?
     @State private var requestCommand: String?
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
-    var isDark: Bool { colorScheme == .dark }
-    var cyber: Bool { model.theme == "Cyberpunk 2077" }
-    var nothing: Bool { model.theme == "Nothing" }
-    var xp: Bool { model.theme == "Windows XP" }
-    var nothingAccent: Color { isDark ? Color(red: 0.91, green: 0.35, blue: 0.30) : Color(red: 0.70, green: 0.15, blue: 0.13) }
-    var foreground: Color {
-        if cyber || nothing || xp { return isDark ? .white : .black }
-        return .primary
-    }
-    var selectedBackground: Color {
-        if cyber { return isDark ? Color(red: 0.36, green: 0.34, blue: 0.20) : Color(red: 0.80, green: 0.76, blue: 0.59) }
-        if nothing { return isDark ? Color.white.opacity(0.12) : Color.black.opacity(0.07) }
-        if xp { return isDark ? Color(red: 0.15, green: 0.30, blue: 0.53) : Color(red: 0.78, green: 0.86, blue: 0.97) }
-        return Color.accentColor.opacity(0.2)
-    }
-    func rowForeground(selected: Bool) -> Color {
-        if cyber { return isDark ? Color(red: 1, green: 0.48, blue: 0.48) : Color(red: 0.55, green: 0.04, blue: 0.08) }
-        return foreground
-    }
-    var customBackground: Color {
-        if cyber { return isDark ? Color(red: 0.055, green: 0.055, blue: 0.065) : Color(red: 0.96, green: 0.94, blue: 0.90) }
-        if nothing { return isDark ? Color(red: 0.055, green: 0.055, blue: 0.06) : Color(red: 0.96, green: 0.96, blue: 0.95) }
-        return isDark ? Color(red: 0.12, green: 0.15, blue: 0.20) : Color(red: 0.94, green: 0.95, blue: 0.98)
-    }
-    var font: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 18) : nothing ? .system(size: 16, weight: .medium) : xp ? .custom("Tahoma", size: 16) : .system(size: 17, weight: .medium) }
-    var searchFont: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 23) : nothing ? .custom("Doto-Black", size: 22) : xp ? .custom("Tahoma", size: 21) : .system(size: 22) }
+    var appearance: LauncherAppearance { LauncherAppearance(theme: model.theme, dark: colorScheme == .dark) }
     func matchText(_ name: String) -> Text {
         let query = model.query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let range = Search.range(query, in: name) else { return Text(name) }
@@ -380,20 +353,33 @@ struct SearchView: View {
     var body: some View {
         Group {
             if let command = requestCommand {
-                RequestComposerView(model: model.requests, command: command, font: searchFont, foreground: foreground, selectionColor: selectedBackground, back: returnToSearch, close: close, resize: resizeRequest, setBackspace: setRequestBackspace)
-                    .background {
-                        if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) }
-                        else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) }
-                    }.clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18))
+                RequestComposerView(model: model.requests, command: command, appearance: appearance, back: returnToSearch, close: close, setBackspace: setRequestBackspace)
             } else { searchContent }
+        }
+        .frame(width: LauncherAppearance.width, height: LauncherAppearance.height, alignment: .top)
+        .foregroundStyle(appearance.foreground).tint(appearance.accent)
+        .background {
+            ZStack {
+                if appearance.cyber || appearance.nothing || appearance.xp {
+                    Rectangle().fill(.ultraThinMaterial).overlay(appearance.background.opacity(reduceTransparency ? 1 : 0.82))
+                } else {
+                    Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: appearance.cornerRadius))
+                }
+                ThemeAtmosphere(theme: model.theme, dark: appearance.dark)
+            }
+        }
+        .clipShape(RoundedRectangle(cornerRadius: appearance.cornerRadius))
+        .overlay {
+            if appearance.cyber || appearance.nothing || appearance.xp {
+                RoundedRectangle(cornerRadius: appearance.cornerRadius).strokeBorder(appearance.border, lineWidth: 1)
+            }
         }
     }
     var searchContent: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 12) {
-                if nothing { NothingSearchIcon() } else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
-                TextField("", text: $model.query).textFieldStyle(.plain).font(searchFont).foregroundColor(xp ? .white : foreground).accessibilityLabel(Text("Search"))
-                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search").font(searchFont).foregroundColor(xp ? .white.opacity(0.9) : foreground.opacity(0.65)).allowsHitTesting(false) } }
+            LauncherHeader(appearance: appearance) {
+                TextField("", text: $model.query).textFieldStyle(.plain).font(appearance.inputFont).foregroundColor(appearance.headerForeground).accessibilityLabel(Text("Search")).accessibilityIdentifier("launcher.search")
+                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add request · proj project").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55)).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
                         model.selected = 0; clickedID = nil
                         if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
@@ -405,21 +391,7 @@ struct SearchView: View {
                         Divider()
                         Button("Select All") { NSApp.sendAction(#selector(NSText.selectAll(_:)), to: nil, from: nil) }
                     }
-            }.padding(.horizontal, nothing ? 15 : 18).padding(.vertical, nothing ? 12 : 18)
-                .foregroundStyle(xp ? Color.white : foreground)
-                .background {
-                    if nothing {
-                        Capsule().fill(foreground.opacity(isDark ? 0.07 : 0.05))
-                            .overlay(Capsule().stroke(foreground.opacity(0.10), lineWidth: 1))
-                    } else if xp { Color(red: 0.16, green: 0.25, blue: 0.39) }
-                }
-                .padding(.horizontal, nothing ? 14 : 0).padding(.top, nothing ? 12 : 0)
-            if !nothing { Divider() }
-            HStack(spacing: 16) {
-                Button { enterRequest("add") } label: { HStack(spacing: 4) { Text("add").font(.system(.caption, design: .monospaced)); Text("Capture request").font(.caption) } }
-                Button { enterRequest("proj") } label: { HStack(spacing: 4) { Text("proj").font(.system(.caption, design: .monospaced)); Text("Choose project").font(.caption) } }
-                Spacer()
-            }.buttonStyle(.plain).foregroundStyle(.secondary).padding(.horizontal, 18).padding(.vertical, 9)
+            }
             ScrollViewReader { proxy in
               ScrollView {
                 LazyVStack(spacing: 2) {
@@ -430,36 +402,22 @@ struct SearchView: View {
                         else { model.selected = i; clickedID = e.id; focus = true }
                     } label: {
                         HStack(spacing: 12) {
-                            if nothing { Circle().fill(i == model.selected ? nothingAccent : .clear).frame(width: 6, height: 6) }
+                            if appearance.nothing { Circle().fill(i == model.selected ? appearance.accent : .clear).frame(width: 6, height: 6) }
                             Image(nsImage: e.icon).renderingMode(e.isAction ? .template : .original).resizable()
                                 .frame(width: 29, height: 29)
-                            matchText(e.name).font(font).lineLimit(1)
+                            matchText(e.name).font(appearance.rowFont).lineLimit(1)
                             Spacer()
-                            if i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(nothing ? nothingAccent : rowForeground(selected: true)) }
+                            if i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(appearance.nothing ? appearance.accent : appearance.rowForeground) }
                         }
-                            .foregroundStyle(rowForeground(selected: i == model.selected))
-                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? selectedBackground : .clear).clipShape(RoundedRectangle(cornerRadius: nothing ? 22 : xp ? 2 : cyber ? 3 : 9))
+                            .foregroundStyle(appearance.rowForeground)
+                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? appearance.selection : .clear).clipShape(RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
                     }.buttonStyle(.plain).id(e.id)
                 }
                 }.padding(8)
-              }.frame(maxHeight: 350).onChange(of: model.selected) { _, value in if model.matches.indices.contains(value) { proxy.scrollTo(model.matches[value].id, anchor: .center) } }
-            }
-        }.foregroundStyle(foreground)
-        .background {
-            ZStack {
-                if cyber || nothing || xp { Rectangle().fill(.ultraThinMaterial).overlay(customBackground.opacity(reduceTransparency ? 1 : 0.82)) }
-                else { Rectangle().fill(.clear).glassEffect(.regular, in: RoundedRectangle(cornerRadius: 18)) }
-                ThemeAtmosphere(theme: model.theme, dark: isDark)
+              }.frame(height: LauncherAppearance.resultsHeight).onChange(of: model.selected) { _, value in if model.matches.indices.contains(value) { proxy.scrollTo(model.matches[value].id, anchor: .center) } }
             }
         }
-        .clipShape(RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18))
-        .overlay {
-            if cyber || nothing || xp {
-                RoundedRectangle(cornerRadius: xp ? 6 : cyber ? 5 : 18)
-                    .strokeBorder(nothing ? foreground.opacity(isDark ? 0.16 : 0.10) : cyber ? Color.red.opacity(isDark ? 0.30 : 0.20) : Color.blue.opacity(isDark ? 0.38 : 0.25), lineWidth: 1)
-            }
-        }
-        .onAppear { focus = false; DispatchQueue.main.async { focus = true }; resize(model.matches.count) }.onChange(of: model.matches.count) { _, count in resize(count) }.onKeyPress(.escape) { close(); return .handled }
+        .onAppear { focus = false; DispatchQueue.main.async { focus = true } }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
         .onKeyPress(.tab) { if let command = typedCommand { enterRequest(command); return .handled }; return .ignored }
@@ -691,21 +649,12 @@ final class KeyPanel: NSPanel {
             if wasKey { return }
         }
         model.query = ""; model.selected = 0
-        let p = KeyPanel(contentRect: NSRect(x: 0,y: 0,width: 560,height: 440), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        let content = SearchView(model: model, close: { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil) }, resize: { [weak self] count in self?.resizePanel(count) }, resizeRequest: { [weak self] height in self?.resizePanelHeight(height) }, setRequestBackspace: { [weak p] callback in p?.requestBackspace = callback })
+        let p = KeyPanel(contentRect: NSRect(x: 0,y: 0,width: LauncherAppearance.width,height: LauncherAppearance.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
+        let content = SearchView(model: model, close: { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil) }, setRequestBackspace: { [weak p] callback in p?.requestBackspace = callback })
         p.refreshApps = { [weak self] in self?.model.refresh() }
         p.showSettings = { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil); self?.openSettings() }
         p.excludeSelected = { [weak self] manager in self?.model.excludeSelectedApp(undoManager: manager) }
         p.isFloatingPanel = true; p.level = .floating; p.isOpaque = false; p.backgroundColor = .clear; p.hasShadow = true; p.hidesOnDeactivate = !CommandLine.arguments.contains("--preview-fixed"); p.contentView = NSHostingView(rootView: content); p.center(); panel = p; NSApp.activate(ignoringOtherApps: true); p.makeKeyAndOrderFront(nil)
-    }
-    func resizePanel(_ count: Int) {
-        resizePanelHeight(CGFloat(120 + max(1, min(count, 7)) * 47))
-    }
-    func resizePanelHeight(_ requestedHeight: CGFloat) {
-        guard let p = panel else { return }
-        let height = min(max(150, requestedHeight), (p.screen ?? NSScreen.main)?.visibleFrame.height ?? 900)
-        var frame = p.frame; frame.origin.y += frame.height - height; frame.size.height = height
-        if abs(p.frame.height - height) > 1 { p.setFrame(frame, display: true) }
     }
     @objc func openSettings() {
         if settings == nil { let w = NSWindow(contentRect: NSRect(x:0,y:0,width:760,height:600), styleMask:[.titled,.closable,.miniaturizable,.resizable], backing:.buffered,defer:false); w.title = NSLocalizedString("Settings", comment: ""); w.isReleasedWhenClosed = false; w.contentView = NSHostingView(rootView: SettingsView(model:model)); w.center(); settings = w }

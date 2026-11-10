@@ -112,18 +112,14 @@ func requestEffortName(_ value: String) -> String {
 struct RequestComposerView: View {
     @ObservedObject var model: RequestModel
     let command: String
-    let font: Font
-    let foreground: Color
-    let selectionColor: Color
+    let appearance: LauncherAppearance
     let back: () -> Void
     let close: () -> Void
-    let resize: (CGFloat) -> Void
     let setBackspace: ((() -> Bool)?) -> Void
     @State private var filter = ""
     @State private var index = 0
     private enum Field: Hashable { case project, request }
     @FocusState private var focus: Field?
-    @Environment(\.colorScheme) private var scheme
     var results: [LocalProject] { ProjectCatalog.localProjects(model.snapshot, settings: model.settings, query: filter) }
     private var selectable: [Int] { results.indices.filter { results[$0].path != nil } }
     private func move(_ direction: Int) {
@@ -139,78 +135,112 @@ struct RequestComposerView: View {
         if command == "proj" && !model.choosingProject && model.receipt == nil { model.choosingProject = true; filter = "" }
         else { model.persistDraft(); back() }
     }
-    var body: some View {
+    private var header: some View {
+        LauncherHeader(appearance: appearance) {
+            Button(action: { model.persistDraft(); back() }) {
+                Text(command.uppercased()).font(.system(size: 14, weight: .bold, design: .monospaced))
+                    .padding(.horizontal, 10).frame(height: 32)
+                    .background(appearance.selection, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+            }.buttonStyle(.plain).foregroundStyle(appearance.xp ? appearance.headerForeground : appearance.accent)
+                .frame(minHeight: 44).accessibilityLabel(Text("Back to search"))
+            if let project = model.selectedProject, !model.choosingProject {
+                Button { model.choosingProject = true; filter = "" } label: {
+                    Text(project.project.name).font(appearance.rowFont).lineLimit(1)
+                        .padding(.horizontal, 10).frame(height: 32)
+                        .background(appearance.selection, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                }.buttonStyle(.plain).frame(maxWidth: 160, minHeight: 44).accessibilityLabel(Text("Choose another project"))
+            }
+            if model.choosingProject {
+                TextField("Find projects", text: $filter, prompt: Text("Find projects").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55))).textFieldStyle(.plain).focused($focus, equals: .project)
+                    .accessibilityIdentifier("requests.projectSearch")
+                    .onChange(of: filter) { _, _ in index = selectable.first ?? 0 }
+            } else { Spacer(minLength: 0) }
+            if model.loading || model.saving { ProgressView().controlSize(.small) }
+        }
+    }
+    private var projectResults: some View {
+        ScrollViewReader { proxy in
+            ScrollView {
+                LazyVStack(spacing: 2) {
+                    if results.isEmpty {
+                        Text(LocalizedStringKey(model.settings.catalogURL.isEmpty || model.settings.projectRoot.isEmpty ? "Set a project source and root in Settings." : model.loading ? "Loading projects…" : "No projects in this scope")).foregroundStyle(.secondary).padding()
+                    }
+                    ForEach(Array(results.enumerated()), id: \.element.id) { i, project in
+                        Button { pick(project) } label: {
+                            HStack(spacing: 12) {
+                                if appearance.nothing { Circle().fill(i == index ? appearance.accent : .clear).frame(width: 6, height: 6) }
+                                Image(systemName: model.settings.pinnedProjects.contains(project.project.id) ? "pin.fill" : "folder").font(.system(size: 22)).frame(width: 29)
+                                VStack(alignment: .leading, spacing: 1) {
+                                    Text(project.project.name).font(appearance.rowFont).lineLimit(1)
+                                    Text(project.path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? NSLocalizedString("No checkout in project root", comment: "")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
+                                }
+                                Spacer(minLength: 8)
+                                Text(projectCategoryName(project.project.category)).font(.caption2).foregroundStyle(.secondary)
+                                if i == index && project.path != nil { Text("↵").foregroundStyle(appearance.nothing ? appearance.accent : appearance.rowForeground) }
+                            }.foregroundStyle(appearance.rowForeground).padding(.horizontal, 12).frame(height: 45).frame(maxWidth: .infinity, alignment: .leading)
+                                .background(i == index ? appearance.selection : .clear, in: RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                        }.buttonStyle(.plain).disabled(project.path == nil).id(project.id).help(project.path ?? NSLocalizedString("No checkout in project root", comment: ""))
+                    }
+                }.padding(8)
+            }.frame(maxHeight: .infinity)
+                .onChange(of: index) { _, value in if results.indices.contains(value) { proxy.scrollTo(results[value].id, anchor: .center) } }
+        }
+    }
+    private var resultContent: some View {
         VStack(spacing: 0) {
-            HStack(spacing: 8) {
-                Button(action: { model.persistDraft(); back() }) { Text(command).font(.system(.body, design: .monospaced)).fontWeight(.semibold).padding(.horizontal, 10).padding(.vertical, 6).background(Color.accentColor.opacity(0.14), in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain).accessibilityLabel(Text("Back to search"))
-                if let project = model.selectedProject, !model.choosingProject {
-                    Button { model.choosingProject = true; filter = "" } label: { Text(project.project.name).lineLimit(1).padding(.horizontal, 10).padding(.vertical, 6).background(foreground.opacity(0.08), in: RoundedRectangle(cornerRadius: 8)) }.buttonStyle(.plain).accessibilityLabel(Text("Choose another project"))
-                }
-                if model.choosingProject {
-                    TextField("Find projects", text: $filter).textFieldStyle(.plain).focused($focus, equals: .project).accessibilityIdentifier("requests.projectSearch")
-                        .onChange(of: filter) { _, _ in index = selectable.first ?? 0 }
-                } else { Spacer() }
-                if model.loading || model.saving { ProgressView().controlSize(.small) }
-            }.padding(16)
             if let receipt = model.receipt {
                 VStack(alignment: .leading, spacing: 10) {
-                    Label("Saved locally", systemImage: "checkmark.circle").font(.headline)
+                    Label("Saved locally", systemImage: "checkmark.circle").font(appearance.rowFont)
                     Text(receipt.file.replacingOccurrences(of: NSHomeDirectory(), with: "~")).font(.system(.caption, design: .monospaced)).textSelection(.enabled).fixedSize(horizontal: false, vertical: true)
                     HStack { Button("Reveal request") { NSWorkspace.shared.activateFileViewerSelecting([URL(fileURLWithPath: receipt.file)]) }; Button("Done", action: close).keyboardShortcut(.return, modifiers: []) }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16)
+                Spacer(minLength: 0)
             } else if model.choosingProject {
-                ScrollViewReader { proxy in
-                    ScrollView {
-                        LazyVStack(spacing: 2) {
-                            if results.isEmpty {
-                                Text(LocalizedStringKey(model.settings.catalogURL.isEmpty || model.settings.projectRoot.isEmpty ? "Set a project source and root in Settings." : model.loading ? "Loading projects…" : "No projects in this scope")).foregroundStyle(.secondary).padding()
-                            }
-                            ForEach(Array(results.enumerated()), id: \.element.id) { i, project in
-                                Button { pick(project) } label: {
-                                    HStack(spacing: 11) {
-                                        Image(systemName: model.settings.pinnedProjects.contains(project.project.id) ? "pin.fill" : "folder").frame(width: 22).foregroundStyle(project.path == nil ? .secondary : .primary)
-                                        VStack(alignment: .leading, spacing: 2) {
-                                            Text(project.project.name).fontWeight(.medium).lineLimit(1)
-                                            Text(project.path.map { URL(fileURLWithPath: $0).lastPathComponent } ?? NSLocalizedString("No checkout in project root", comment: "")).font(.caption).foregroundStyle(.secondary).lineLimit(1)
-                                        }
-                                        Spacer(minLength: 8)
-                                        Text(projectCategoryName(project.project.category)).font(.caption2).foregroundStyle(.secondary)
-                                        if i == index && project.path != nil { Text("↵") }
-                                    }.padding(.horizontal, 12).frame(height: 53).frame(maxWidth: .infinity, alignment: .leading)
-                                        .background(i == index ? selectionColor : .clear, in: RoundedRectangle(cornerRadius: 10))
-                                }.buttonStyle(.plain).disabled(project.path == nil).id(project.id).help(project.path ?? NSLocalizedString("No checkout in project root", comment: ""))
-                            }
-                        }.padding(.horizontal, 8).padding(.bottom, 8)
-                    }.frame(maxHeight: 335)
-                        .onChange(of: index) { _, value in if results.indices.contains(value) { proxy.scrollTo(results[value].id, anchor: .center) } }
-                }
+                projectResults
             } else {
-                TextField("What would you like to change?", text: $model.text, axis: .vertical).textFieldStyle(.plain).font(font).lineLimit(3...7).focused($focus, equals: .request).padding(.horizontal, 18).padding(.bottom, 14).accessibilityIdentifier("requests.text").disabled(model.saving)
+                TextField("What would you like to change?", text: $model.text, prompt: Text("What would you like to change?").font(appearance.placeholderFont).foregroundColor(appearance.foreground.opacity(0.55)), axis: .vertical)
+                    .textFieldStyle(.plain).font(appearance.inputFont).lineLimit(3...7)
+                    .focused($focus, equals: .request).padding(.horizontal, 18).padding(.top, 10)
+                    .accessibilityIdentifier("requests.text").disabled(model.saving)
+                Spacer(minLength: 0)
                 HStack {
                     if model.selectedProject == nil { Text("Inbox").foregroundStyle(.secondary) }
                     Spacer()
                     Text(model.settings.model + " · " + requestEffortName(model.settings.reasoningEffort)).font(.system(.caption, design: .monospaced)).foregroundStyle(.secondary).textSelection(.enabled)
-                }.padding(.horizontal, 18).padding(.bottom, 12)
+                }.padding(.horizontal, 18).padding(.vertical, 10)
             }
-            if let error = model.error { Text(error).font(.caption).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 8) }
+            if let error = model.error {
+                Text(error).font(.caption).foregroundStyle(.red).lineLimit(2).help(error)
+                    .frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 8)
+            }
             if model.choosingProject {
-                if let error = model.catalogError { VStack(alignment: .leading, spacing: 3) { Text(LocalizedStringKey(model.snapshot == nil ? "Project source unavailable." : "Using cached projects.")); Text(error) }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 8) }
+                if let error = model.catalogError {
+                    VStack(alignment: .leading, spacing: 3) {
+                        Text(LocalizedStringKey(model.snapshot == nil ? "Project source unavailable." : "Using cached projects."))
+                        Text(error).lineLimit(2).help(error)
+                    }.font(.caption).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding(.horizontal, 16).padding(.bottom, 8)
+                }
                 HStack {
                     if let snapshot = model.snapshot { Text(snapshot.fetchedAt, format: .dateTime.month().day().hour().minute()).font(.caption2).foregroundStyle(.secondary) }
                     Spacer(); Button("Refresh Projects") { Task { await model.refresh() } }.disabled(model.loading)
-                }.padding(.horizontal, 16).padding(.bottom, 10)
+                }.padding(.horizontal, 16).padding(.bottom, 8)
             }
             Divider()
             HStack {
                 Text(LocalizedStringKey(model.choosingProject ? "↑ ↓ Select · Return Choose" : "Shift Return New line")).font(.caption).foregroundStyle(.secondary)
                 Spacer()
                 if !model.choosingProject && model.receipt == nil {
-                    Button("Save request") { Task { await model.submit() } }.buttonStyle(.borderedProminent).disabled(model.saving || model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("requests.save")
+                    Button("Save request") { Task { await model.submit() } }.buttonStyle(.borderedProminent)
+                        .disabled(model.saving || model.text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty).accessibilityIdentifier("requests.save")
                 } else { Text("Esc Back").font(.caption).foregroundStyle(.secondary) }
-            }.padding(12)
-        }.foregroundStyle(foreground)
-            .fixedSize(horizontal: false, vertical: true)
-            .onGeometryChange(for: CGFloat.self) { $0.size.height } action: { resize($0) }
+            }.padding(.horizontal, 12).frame(height: 44)
+        }.frame(height: LauncherAppearance.resultsHeight, alignment: .top)
+    }
+    var body: some View {
+        VStack(spacing: 0) {
+            header
+            resultContent
+        }
             .onAppear {
                 model.activate(command); index = selectable.first ?? 0
                 setBackspace {
