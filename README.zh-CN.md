@@ -5,7 +5,7 @@
 快速启动 macOS 应用和本地命令。
 搜索支持缩写，并在本机根据你打开的应用调整排序。
 
-输入 `add` 或 `proj`，选择项目后写需求。`ADD` 仅保存；`PROJ` 打开对应的 ChatGPT 对话并发送。可在「设置 → 请求」调整范围、置顶、队列与预设。默认使用 `gpt-6.1-terra`、`high`、`Development`。
+输入 `add` 选项目，新建或追加待处理请求；选中已有请求后按 ⌘Return 发送。`proj` 直接创建并发送一次性请求。已发送原文件保留，待处理项目下次仍可见。「设置 → 请求」可调整范围、置顶、队列与预设；默认为 `gpt-6.1-terra`、`high`、`Development`。
 
 ![Keylight search](docs/images/search.png)
 

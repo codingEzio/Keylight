@@ -8,15 +8,19 @@ Search also matches letters in order, so `clc` finds Calculator; `cal` initially
 
 ## Local development requests
 
-Type `add` or `proj` then Space, Tab or Return, choose a project, and write. The
-command and selected project become editable chips in the same launcher. All
-states use the existing results area, with one fixed window frame and the same
-Liquid Glass, Cyberpunk 2077, Windows XP or Nothing shell. Command hints live
-in the search placeholder rather than a separate row. Use
-arrows and Return, or click a project. Escape goes back; an empty input also
-supports Backspace. Shift Return inserts a line break. Return in `ADD` saves
-without starting AI. Return in `PROJ` saves first, opens the matching ChatGPT
-desktop chat, applies its folder and presets, and sends the request.
+Type `add` or `proj` then Space, Tab or Return and choose a project. `ADD`
+shows that project's pending requests and a New request action. Select an
+existing request to read it and append text; Return saves the addition to the
+same file. New request creates another file. Select a request and press
+⌘Return, or use Start chat, to consume it with its saved folder and
+presets. Any new text is saved before sending. No request runs automatically.
+`PROJ` writes and sends a one-off request directly.
+
+The command and project are editable chips in the same launcher. All states
+reuse its results area, fixed frame, and Liquid Glass, Cyberpunk 2077, Windows
+XP or Nothing shell. Hints use the placeholder. Use arrows and Return, or click
+a row. Escape goes back; empty input also supports Backspace. Shift Return
+inserts a line break while editing.
 
 In Settings → Requests, choose the queue folder, project root and Godspeed
 Projects endpoint (`/api/projects?group=all`). The default scope is JobOSS, OSS
@@ -40,15 +44,26 @@ check it before creating another request. Automatic retries never resend it.
 Use New request after reviewing an unconfirmed send; its saved files remain.
 Verified with ChatGPT desktop 26.1103.60933 and its bundled CLI 0.166.0.
 
-Each request becomes `<local-date>_<time>-<UUID>/request.md`, with a versioned
-header containing ID, timestamp with timezone, project ID/name/path, model and
-reasoning effort and permission preset, followed by the exact input text. A
-`chat.json` receipt records the thread and confirmed turn for `PROJ`. The local limit is 1 MB per
-request. Files use mode 0600 and request directories use 0700. A request is
-acknowledged after file synchronization and readback. Interrupted pending writes
-and retries reuse the request ID; conflicting content preserves the original.
-Leave the queue in a private, trusted directory outside public source control.
-There is no automatic queue execution, cleanup or synchronization.
+`ADD` stores files at `<queue>/<project-id>/request-YYMMDDatHHMMSS-xxxx.md`;
+`xxxx` is four random lowercase letters, with collision checks. Unsafe project
+IDs use a stable hashed directory name. A versioned header preserves the ID,
+creation timestamp with timezone, project ID/name/path, model, reasoning effort
+and permission preset. Appending keeps the original header and text, adding
+new text after a blank line. The total text limit is 1 MB. Files use mode 0600
+and directories use 0700; saves synchronize and read back before acknowledgment.
+Restart retries reuse the request or append once; conflicting content keeps
+the original and asks you to reload.
+
+Pending requests are grouped by project and exact checkout. Existing
+`<local-date>_<time>-<UUID>/request.md` files remain readable. `PROJ` retains
+that one-off layout. New pool files use `<filename>.chat.json` receipts;
+legacy files use `chat.json`. A confirmed desktop turn marks a request consumed
+and removes it from the pending list, while preserving its file and receipt.
+This means accepted for execution, not that the AI finished its work. An
+unconfirmed send remains visible for review and cannot be appended or resent.
+Continue chatting in the opened ChatGPT chat. Keep the queue in a private,
+trusted directory outside public source control. There is no automatic queue
+execution, cleanup or synchronization.
 
 The project catalog is cached beside the settings and remains available offline.
 Refresh errors leave the previous cache intact and show its timestamp. Refresh
@@ -71,13 +86,16 @@ keylight projects refresh
 keylight projects list
 keylight request add 'Investigate the startup error'
 keylight request add --project example-project-id 'Fix keyboard navigation'
+keylight request list example-project-id
+keylight request append /absolute/path/from/receipt.md 'Also check empty input'
 ```
 
 The CLI's optional `--project` remains available for existing capture scripts;
 the native `ADD` flow always chooses a project first.
 
 Recheck with `sh Tests/requests_smoke.sh` and
-`python3 Tests/requests_cli_smoke.py` and `sh Tests/request_draft_smoke.sh`;
+`python3 Tests/requests_cli_smoke.py`, `sh Tests/request_pool_smoke.sh`,
+`sh Tests/chat_launch_smoke.sh` and `sh Tests/request_draft_smoke.sh`;
 all use disposable local data.
 
 ## Command line

@@ -5,7 +5,7 @@
 快速啟動 macOS App 和本機指令。
 搜尋支援縮寫，並在本機依你開啟的 App 調整排序。
 
-輸入 `add` 或 `proj`，選擇專案後寫需求。`ADD` 僅儲存；`PROJ` 開啟對應的 ChatGPT 聊天並傳送。可在「設定 → 請求」調整範圍、置頂、佇列與預設。預設使用 `gpt-6.1-terra`、`high`、`Development`。
+輸入 `add` 選專案，新增或追加待處理請求；選取既有請求後按 ⌘Return 傳送。`proj` 直接建立並傳送一次性請求。已傳送原檔保留，待處理項目下次仍可見。「設定 → 請求」可調整範圍、置頂、佇列與預設；預設為 `gpt-6.1-terra`、`high`、`Development`。
 
 ![Keylight search](docs/images/search.png)
 

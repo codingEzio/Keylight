@@ -5,7 +5,7 @@
 A fast macOS launcher for apps and local commands.
 Search matches abbreviations and learns from your app choices on this Mac.
 
-Type `add` or `proj`, choose a project, then write your request. `ADD` saves it locally; `PROJ` opens the matching ChatGPT chat and sends it. Configure scope, pins, queue and presets in Settings → Requests. Defaults: `gpt-6.1-terra`, `high`, `Development`.
+Type `add` to choose a project, create or append a pending request, or select one and press ⌘Return to send it. `proj` creates and sends a one-off request. Sent files remain; pending ones appear next time. Configure scope, pins, queue and presets in Settings → Requests. Defaults: `gpt-6.1-terra`, `high`, `Development`.
 
 ![Keylight search](docs/images/search.png)
 
