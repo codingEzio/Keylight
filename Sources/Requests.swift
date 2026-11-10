@@ -11,6 +11,21 @@ struct RequestSettings: Codable, Equatable, Sendable {
     var pinnedProjects: [String] = []
     var model = "gpt-6.1-terra"
     var reasoningEffort = "high"
+    var permissionsProfile = "Development"
+
+    private enum CodingKeys: String, CodingKey { case projectRoot, catalogURL, queueFolder, categories, pinnedProjects, model, reasoningEffort, permissionsProfile }
+    init() {}
+    init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        projectRoot = try c.decode(String.self, forKey: .projectRoot)
+        catalogURL = try c.decode(String.self, forKey: .catalogURL)
+        queueFolder = try c.decode(String.self, forKey: .queueFolder)
+        categories = try c.decode([String].self, forKey: .categories)
+        pinnedProjects = try c.decode([String].self, forKey: .pinnedProjects)
+        model = try c.decode(String.self, forKey: .model)
+        reasoningEffort = try c.decode(String.self, forKey: .reasoningEffort)
+        permissionsProfile = try c.decodeIfPresent(String.self, forKey: .permissionsProfile) ?? "Development"
+    }
 
     func validate() throws {
         guard [projectRoot, queueFolder].allSatisfy({ $0.isEmpty || ($0.hasPrefix("/") && $0.utf8.count <= 4096) }),
@@ -21,6 +36,8 @@ struct RequestSettings: Codable, Equatable, Sendable {
               pinnedProjects.allSatisfy({ !$0.isEmpty && $0.utf8.count <= 256 }),
               !model.isEmpty, model.utf8.count <= 128,
               model.unicodeScalars.allSatisfy({ CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "-_.")).contains($0) }),
+              !permissionsProfile.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, permissionsProfile.utf8.count <= 128,
+              !permissionsProfile.unicodeScalars.contains(where: CharacterSet.controlCharacters.contains),
               Self.effortOptions.contains(reasoningEffort) else { throw ConfigError.invalid }
     }
     private static func validURL(_ value: String) -> Bool {
@@ -156,13 +173,15 @@ struct DevelopmentRequest: Codable, Sendable {
     let projectPath: String?
     let model: String
     let reasoningEffort: String
+    // Missing in requests saved before permission presets were supported.
+    let permissionsProfile: String?
     let text: String
     init(text: String, project: LocalProject?, settings: RequestSettings, id: UUID = UUID(), createdAt: Date = Date()) throws {
         guard !text.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, text.utf8.count <= 1_000_000 else { throw ConfigError.io("Enter a request of up to 1 MB.") }
         try settings.validate()
         if let project, project.path == nil { throw ConfigError.io("This project has no local checkout.") }
         self.id = id; self.createdAt = createdAt; self.timeZoneIdentifier = TimeZone.current.identifier; self.projectID = project?.project.id; self.projectName = project?.project.name; self.projectPath = project?.path
-        self.model = settings.model; self.reasoningEffort = settings.reasoningEffort; self.text = text
+        self.model = settings.model; self.reasoningEffort = settings.reasoningEffort; self.permissionsProfile = settings.permissionsProfile; self.text = text
     }
     var folderName: String {
         let format = DateFormatter(); format.locale = Locale(identifier: "en_US_POSIX"); format.timeZone = TimeZone(identifier: timeZoneIdentifier); format.dateFormat = "yyyy-MM-dd_HHmmss"
@@ -171,7 +190,8 @@ struct DevelopmentRequest: Codable, Sendable {
     var data: Data {
         func value(_ string: String?) -> String { guard let string else { return "null" }; return String(decoding: try! JSONEncoder().encode(string), as: UTF8.self) }
         let format = ISO8601DateFormatter(); format.timeZone = TimeZone(identifier: timeZoneIdentifier)
-        let header = "---\nschema: keylight.request/v1\nid: \(value(id.uuidString.lowercased()))\ncreated_at: \(value(format.string(from: createdAt)))\nproject_id: \(value(projectID))\nproject_name: \(value(projectName))\nproject_path: \(value(projectPath))\nmodel: \(value(model))\nreasoning_effort: \(value(reasoningEffort))\n---\n\n"
+        let preset = permissionsProfile.map { "permission_profile: \(value($0))\n" } ?? ""
+        let header = "---\nschema: keylight.request/v1\nid: \(value(id.uuidString.lowercased()))\ncreated_at: \(value(format.string(from: createdAt)))\nproject_id: \(value(projectID))\nproject_name: \(value(projectName))\nproject_path: \(value(projectPath))\nmodel: \(value(model))\nreasoning_effort: \(value(reasoningEffort))\n\(preset)---\n\n"
         return Data((header + text).utf8)
     }
 }

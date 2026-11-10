@@ -44,7 +44,7 @@ with tempfile.TemporaryDirectory(prefix="keylight-request-cli-") as temporary:
     try:
         for field, value in [("root", str(workspace)), ("queue", str(root / "Queue")),
                              ("source", f"http://127.0.0.1:{server.server_port}/api/projects?group=all"),
-                             ("pins", "missing,fixture")]:
+                             ("pins", "missing,fixture"), ("permissions", "Development")]:
             run("config", "requests", field, value)
         assert "2 projects cached" in run("projects", "refresh")
     finally:
@@ -61,6 +61,7 @@ with tempfile.TemporaryDirectory(prefix="keylight-request-cli-") as temporary:
     saved = Path(receipt["file"]).read_text()
     assert saved.endswith(text) and 'project_id: "fixture"' in saved
     assert 'model: "gpt-6.1-terra"' in saved and 'reasoning_effort: "high"' in saved
+    assert 'permission_profile: "Development"' in saved
     inbox = json.loads(run("request", "add", "Inbox request"))
     assert "project_path: null" in Path(inbox["file"]).read_text()
     run("request", "add", "--project", "missing", "do not save", expected=1)

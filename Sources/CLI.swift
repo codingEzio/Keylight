@@ -20,7 +20,7 @@ enum CLI {
       Keylight config alias add|remove APP_PATH ALIAS
       Keylight config learning reset    Reset learned search ranking
       Keylight config requests FIELD VALUE
-        FIELD: root, source, queue, model, effort, scope, pins
+        FIELD: root, source, queue, model, effort, permissions, scope, pins
         scope and pins use comma-separated values
       Keylight projects refresh         Refresh the local Godspeed catalog
       Keylight projects list [TEXT]     List scoped projects and local paths
@@ -92,7 +92,7 @@ enum CLI {
             }
             if args.first == "config" {
                 if args.count == 4, args[1] == "requests" {
-                    guard ["root", "source", "queue", "model", "effort", "scope", "pins"].contains(args[2]) else { throw ConfigError.io(help) }
+                    guard ["root", "source", "queue", "model", "effort", "permissions", "scope", "pins"].contains(args[2]) else { throw ConfigError.io(help) }
                     try ConfigStore.update { config in
                         switch args[2] {
                         case "root": config.requests.projectRoot = args[3]
@@ -100,6 +100,7 @@ enum CLI {
                         case "queue": config.requests.queueFolder = args[3]
                         case "model": config.requests.model = args[3]
                         case "effort": config.requests.reasoningEffort = args[3]
+                        case "permissions": config.requests.permissionsProfile = args[3]
                         case "scope": config.requests.categories = args[3].split(separator: ",").map(String.init)
                         case "pins": config.requests.pinnedProjects = args[3].split(separator: ",").map(String.init)
                         default: break

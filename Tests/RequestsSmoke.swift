@@ -17,6 +17,9 @@ import Darwin
         let retired = root.appendingPathComponent("_abandoned/X-Old")
         try fm.createDirectory(at: retired, withIntermediateDirectories: true)
         var settings = RequestSettings(); settings.projectRoot = root.path; settings.catalogURL = "http://localhost:1/api/projects?group=all"; settings.queueFolder = temporary.appendingPathComponent("Queue").path
+        var legacySettings = try JSONSerialization.jsonObject(with: JSONEncoder().encode(settings)) as! [String: Any]
+        legacySettings.removeValue(forKey: "permissionsProfile")
+        require(try JSONDecoder().decode(RequestSettings.self, from: JSONSerialization.data(withJSONObject: legacySettings)).permissionsProfile == "Development", "old settings lost permission default")
         let input: [String: Any] = ["schema": "godspeed.project-groups/v1", "total": 3, "items": [
             ["id": "example", "name": "Example", "summary": "fixture", "category": "oss", "project_checkouts": [], "repositories": [["role": "canonical", "checkouts": [["state": "observed", "path": project.path]]]]],
             ["id": "old", "name": "Old", "category": "private", "project_checkouts": [], "repositories": [["role": "historical", "checkouts": [["state": "observed", "path": project.path], ["state": "observed", "path": retired.path]]]]],
@@ -37,6 +40,7 @@ import Darwin
         settings.categories = ["oss", "private"]
         let text = "  修正搜尋 🧩\n\n保留空白與標點。\n"
         let request = try DevelopmentRequest(text: text, project: choices[0], settings: settings)
+        require(request.permissionsProfile == "Development", "permission preset missing")
         let restored = try JSONDecoder().decode(DevelopmentRequest.self, from: JSONEncoder().encode(request))
         require(restored.data == request.data && restored.folderName == request.folderName, "restart identity")
         let receipt = try RequestQueue.save(request, folder: settings.queueFolder)
