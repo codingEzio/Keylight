@@ -144,3 +144,7 @@ Search for Wallpaper or Login Items & Extensions (also searchable as startup) to
 ## Clipboard history
 
 Type `clip` in the launcher to show history. Click an entry, or select it with the arrow keys and press Return; after the launcher closes, press ⌘V to paste. Keylight stores text locally while it is running, excluding file URLs, images and common concealed/transient clipboard types. Storage is private to the current user. It reserves 16 MB within the 2 GB budget and removes oldest entries when needed; the launcher shows a dismissible notice. Text over 16 MB and clipboard changes during a pending save are not saved and produce an error in the launcher. Clipboard contents may include sensitive text; they are stored unencrypted in the user account.
+
+## Recent commands
+
+The first results row shows recent commands and searches used to open results. Press Down to select the row, Left or Right to choose, and Return to restore a term. Press Down again to move into results. The most recent 50 distinct terms are saved locally; existing learned app searches appear until newer terms replace them. `clip` opens its history when restored. Unsubmitted input is not saved.

@@ -28,6 +28,9 @@ struct Entry: Identifiable {
     @Published var aliases: [String: [String]] = [:]
     @Published private(set) var searchHistory = SearchHistory()
     @Published private(set) var learningError: String?
+    @Published private(set) var recentCommands: [String] = []
+    private let recentQueue = DispatchQueue(label: "local.keylight.recent-commands", qos: .utility)
+    private var recentUnreadable = false
     private var ready = false
     private var reloading = false
     private var observer: NSObjectProtocol?
@@ -39,6 +42,7 @@ struct Entry: Identifiable {
     }
     init() {
         loadSettings()
+        do { recentCommands = try RecentCommandsStore.read(); if recentCommands.isEmpty { recentCommands = Array(searchHistory.queries.reversed().map(\.text).prefix(50)) } } catch { recentUnreadable = true; self.error = error.localizedDescription }
         ready = true
         watchAppFolders()
         let fd = open(ConfigStore.file.deletingLastPathComponent().path, O_EVTONLY)
@@ -224,7 +228,19 @@ struct Entry: Identifiable {
         NSApp.activate(ignoringOtherApps: true)
         let alert = NSAlert(); alert.messageText = NSLocalizedString("Command failed", comment: ""); alert.informativeText = text; alert.runModal()
     }
+    func rememberCommand(_ input: String) {
+        let value = input.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !recentUnreadable, !value.isEmpty, value.utf8.count <= 128 else { return }
+        recentCommands.removeAll { $0.caseInsensitiveCompare(value) == .orderedSame }
+        recentCommands.insert(value, at: 0)
+        if recentCommands.count > 50 { recentCommands.removeLast(recentCommands.count - 50) }
+        let snapshot = recentCommands
+        recentQueue.async { [weak self] in
+            do { try RecentCommandsStore.save(snapshot) } catch { DispatchQueue.main.async { self?.error = error.localizedDescription } }
+        }
+    }
     func run(_ e: Entry) {
+        rememberCommand(query)
         if !e.isAction, let u = e.url {
             let selectedQuery = query
             let appID = e.id
@@ -332,10 +348,13 @@ struct SearchView: View {
     @ObservedObject var model: Model
     let close: () -> Void
     let setRequestBackspace: ((() -> Bool)?) -> Void
+    var setRecentKeyHandler: (((UInt16) -> Bool)?) -> Void = { _ in }
     @FocusState private var focus: Bool
     @State private var clickedID: String?
     @State private var requestCommand: String?
     @State private var showingClipboard = false
+    @State private var recentIndex: Int?
+    @State private var recentPassed = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var appearance: LauncherAppearance { LauncherAppearance(theme: model.theme, dark: colorScheme == .dark) }
@@ -346,7 +365,7 @@ struct SearchView: View {
         let match = Text(String(name[range])).underline()
         return Text("\(before)\(match)\(after)")
     }
-    private func enterRequest(_ command: String) { if command == "clip" { showingClipboard = true } else { requestCommand = command }; model.query = "" }
+    private func enterRequest(_ command: String) { model.rememberCommand(command); recentIndex = nil; if command == "clip" { showingClipboard = true } else { requestCommand = command }; model.query = "" }
     private func returnToSearch() {
         requestCommand = nil; model.query = ""; focus = false
         DispatchQueue.main.async { focus = true }
@@ -379,6 +398,34 @@ struct SearchView: View {
             }
         }
     }
+    private func reuseRecent(_ index: Int) {
+        guard model.recentCommands.indices.contains(index) else { return }
+        let value = model.recentCommands[index]
+        recentIndex = nil; recentPassed = false; model.query = value; focus = true
+    }
+    private func recentKey(_ key: UInt16) -> Bool {
+        guard requestCommand == nil, !showingClipboard else { return false }
+        switch key {
+        case 125: // Down: history row, then normal results.
+            if recentIndex != nil { recentIndex = nil; recentPassed = true; model.selected = 0; return true }
+            if !recentPassed && !model.recentCommands.isEmpty && model.selected == 0 { recentIndex = 0; return true }
+            return false
+        case 126: // Up from the first result returns to history.
+            if recentIndex != nil { recentIndex = nil; return true }
+            if !model.recentCommands.isEmpty && model.selected == 0 { recentIndex = 0; return true }
+            return false
+        case 123:
+            guard let index = recentIndex else { return false }
+            recentIndex = max(0, index - 1); return true
+        case 124:
+            guard let index = recentIndex else { return false }
+            recentIndex = min(model.recentCommands.count - 1, index + 1); return true
+        case 36, 76:
+            guard let index = recentIndex else { return false }
+            reuseRecent(index); return true
+        default: return false
+        }
+    }
     var searchContent: some View {
         VStack(spacing: 0) {
             if model.clipboard.limitNotice { Text("Clipboard history is near 2 GB; oldest entries were removed.").font(.caption).foregroundStyle(appearance.foreground).padding(4).onTapGesture { model.clipboard.dismissNotice() } }
@@ -387,7 +434,7 @@ struct SearchView: View {
                 TextField("", text: $model.query).textFieldStyle(.plain).font(appearance.inputFont).foregroundColor(appearance.headerForeground).accessibilityLabel(Text("Search")).accessibilityIdentifier("launcher.search")
                     .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55)).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
-                        model.selected = 0; clickedID = nil
+                        model.selected = 0; clickedID = nil; recentIndex = nil; recentPassed = false
                         if value.lowercased() == "clip" { enterRequest("clip") }
                         else if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
                     }
@@ -402,11 +449,25 @@ struct SearchView: View {
             ScrollViewReader { proxy in
               ScrollView {
                 LazyVStack(spacing: 2) {
+                if !model.recentCommands.isEmpty {
+                    ScrollViewReader { recentProxy in
+                        ScrollView(.horizontal, showsIndicators: false) {
+                            HStack(spacing: 6) {
+                                ForEach(Array(model.recentCommands.enumerated()), id: \.offset) { index, value in
+                                    Button { reuseRecent(index) } label: {
+                                        Text(value).lineLimit(1).frame(maxWidth: 140).font(.system(size: 12, weight: .medium)).padding(.horizontal, 9).padding(.vertical, 5)
+                                            .background(recentIndex == index ? appearance.selection : appearance.foreground.opacity(0.06)).clipShape(Capsule())
+                                    }.buttonStyle(.plain).id(index)
+                                }
+                            }
+                        }.onChange(of: recentIndex) { _, index in if let index { recentProxy.scrollTo(index) } }
+                    }.padding(.horizontal, 4).padding(.bottom, 4)
+                }
                 if model.matches.isEmpty { Text(LocalizedStringKey(model.isScanning ? "Searching…" : "No results")).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding() }
                 ForEach(Array(model.matches.enumerated()), id: \.element.id) { i, e in
                     Button {
                         if clickedID == e.id && model.selected == i { model.run(e); close() }
-                        else { model.selected = i; clickedID = e.id; focus = true }
+                        else { model.selected = i; recentIndex = nil; recentPassed = true; clickedID = e.id; focus = true }
                     } label: {
                         HStack(spacing: 12) {
                             if appearance.nothing { Circle().fill(i == model.selected ? appearance.accent : .clear).frame(width: 6, height: 6) }
@@ -414,17 +475,17 @@ struct SearchView: View {
                                 .frame(width: 29, height: 29)
                             matchText(e.name).font(appearance.rowFont).lineLimit(1)
                             Spacer()
-                            if i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(appearance.nothing ? appearance.accent : appearance.rowForeground) }
+                            if recentIndex == nil && i == model.selected { Text("↵").font(.system(size: 16, weight: .medium)).foregroundStyle(appearance.nothing ? appearance.accent : appearance.rowForeground) }
                         }
                             .foregroundStyle(appearance.rowForeground)
-                            .padding(.horizontal, 12).frame(height: 45).background(i == model.selected ? appearance.selection : .clear).clipShape(RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
+                            .padding(.horizontal, 12).frame(height: 45).background(recentIndex == nil && i == model.selected ? appearance.selection : .clear).clipShape(RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
                     }.buttonStyle(.plain).id(e.id)
                 }
                 }.padding(8)
               }.frame(height: LauncherAppearance.resultsHeight).onChange(of: model.selected) { _, value in if model.matches.indices.contains(value) { proxy.scrollTo(model.matches[value].id, anchor: .center) } }
             }
         }
-        .onAppear { focus = false; DispatchQueue.main.async { focus = true } }.onKeyPress(.escape) { close(); return .handled }
+        .onAppear { setRecentKeyHandler { recentKey($0) }; focus = false; DispatchQueue.main.async { focus = true } }.onDisappear { setRecentKeyHandler(nil) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
         .onKeyPress(.tab) { if let command = typedCommand { enterRequest(command); return .handled }; return .ignored }
@@ -571,7 +632,10 @@ final class KeyPanel: NSPanel {
     var excludeSelected: ((UndoManager?) -> Void)?
     var refreshApps: (() -> Void)?
     var requestBackspace: (() -> Bool)?
+    var recentKeyHandler: ((UInt16) -> Bool)?
     override func sendEvent(_ event: NSEvent) {
+        if event.type == .keyDown, event.modifierFlags.intersection([.command, .control, .option, .shift]).isEmpty,
+           let editor = firstResponder as? NSTextView, !editor.hasMarkedText(), recentKeyHandler?(event.keyCode) == true { return }
         // The field editor consumes an empty Backspace before SwiftUI onKeyPress.
         if event.type == .keyDown, event.keyCode == 51,
            event.modifierFlags.intersection([.command, .control, .option]).isEmpty,
@@ -657,7 +721,7 @@ final class KeyPanel: NSPanel {
         }
         model.query = ""; model.selected = 0
         let p = KeyPanel(contentRect: NSRect(x: 0,y: 0,width: LauncherAppearance.width,height: LauncherAppearance.height), styleMask: [.borderless, .nonactivatingPanel], backing: .buffered, defer: false)
-        let content = SearchView(model: model, close: { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil) }, setRequestBackspace: { [weak p] callback in p?.requestBackspace = callback })
+        let content = SearchView(model: model, close: { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil) }, setRequestBackspace: { [weak p] callback in p?.requestBackspace = callback }, setRecentKeyHandler: { [weak p] callback in p?.recentKeyHandler = callback })
         p.refreshApps = { [weak self] in self?.model.refresh() }
         p.showSettings = { [weak self] in self?.model.requests.persistDraft(); self?.panel?.orderOut(nil); self?.openSettings() }
         p.excludeSelected = { [weak self] manager in self?.model.excludeSelectedApp(undoManager: manager) }
