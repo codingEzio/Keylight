@@ -179,3 +179,11 @@
 "No matching requests" = "No matching requests";
 
 "Return Requests" = "Return Requests";
+
+"Clipboard History" = "Clipboard History";
+"No clipboard history" = "No clipboard history";
+"Load more" = "Load more";
+"Clipboard history is near 2 GB; oldest entries were removed." = "Clipboard history is near 2 GB; oldest entries were removed.";
+"Search · add · proj · clip" = "Search · add · proj · clip";
+"Clipboard text exceeds 16 MB and was not saved." = "Clipboard text exceeds 16 MB and was not saved.";
+"Clipboard history is busy; an item was not saved." = "Clipboard history is busy; an item was not saved.";

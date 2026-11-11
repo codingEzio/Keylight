@@ -140,3 +140,7 @@ App icon: generated with OpenAI image generation and stored as `Assets/Keylight.
 ## System Settings shortcuts
 
 Search for Wallpaper or Login Items & Extensions (also searchable as startup) to open that pane directly. The shared catalog in `Sources/SystemSettings.swift` contains their names, search terms, icons and macOS extension identifiers. Availability depends on macOS.
+
+## Clipboard history
+
+Type `clip` in the launcher and press Return. Select an entry to copy it back. Keylight stores text locally while it is running, excluding file URLs, images and common concealed/transient clipboard types. Storage is private to the current user. It reserves 16 MB within the 2 GB budget and removes oldest entries when needed; the launcher shows a dismissible notice. Text over 16 MB and clipboard changes during a pending save are not saved and produce an error in the launcher. Clipboard contents may include sensitive text; they are stored unencrypted in the user account.

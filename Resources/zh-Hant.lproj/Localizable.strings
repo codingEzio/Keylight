@@ -179,3 +179,11 @@
 "No matching requests" = "沒有符合的請求";
 
 "Return Requests" = "Return 查看請求";
+
+"Clipboard History" = "剪貼簿歷史";
+"No clipboard history" = "暫無剪貼簿歷史";
+"Load more" = "載入更多";
+"Clipboard history is near 2 GB; oldest entries were removed." = "剪貼簿歷史接近 2 GB，最早的記錄已移除。";
+"Search · add · proj · clip" = "搜尋 · add · proj · clip";
+"Clipboard text exceeds 16 MB and was not saved." = "剪貼簿文字超過 16 MB，未儲存。";
+"Clipboard history is busy; an item was not saved." = "剪貼簿歷史忙碌中，有一筆內容未儲存。";

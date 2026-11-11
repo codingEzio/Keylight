@@ -17,6 +17,7 @@ struct Entry: Identifiable {
 
 @MainActor final class Model: ObservableObject {
     let requests = RequestModel()
+    let clipboard = ClipboardHistory()
     @Published var theme = "Liquid Glass" { didSet { save(\.theme, theme) } }
     @Published var modifier = "⌘" { didSet { save(\.modifier, modifier); if ready && !reloading { registerHotKey() } } }
     @Published var key = "Space" { didSet { save(\.key, key); if ready && !reloading { registerHotKey() } } }
@@ -334,6 +335,7 @@ struct SearchView: View {
     @FocusState private var focus: Bool
     @State private var clickedID: String?
     @State private var requestCommand: String?
+    @State private var showingClipboard = false
     @Environment(\.colorScheme) private var colorScheme
     @Environment(\.accessibilityReduceTransparency) private var reduceTransparency
     var appearance: LauncherAppearance { LauncherAppearance(theme: model.theme, dark: colorScheme == .dark) }
@@ -344,15 +346,17 @@ struct SearchView: View {
         let match = Text(String(name[range])).underline()
         return Text("\(before)\(match)\(after)")
     }
-    private func enterRequest(_ command: String) { requestCommand = command; model.query = "" }
+    private func enterRequest(_ command: String) { if command == "clip" { showingClipboard = true } else { requestCommand = command }; model.query = "" }
     private func returnToSearch() {
         requestCommand = nil; model.query = ""; focus = false
         DispatchQueue.main.async { focus = true }
     }
-    private var typedCommand: String? { ["add", "proj"].first { $0 == model.query.lowercased() } }
+    private var typedCommand: String? { ["add", "proj", "clip"].first { $0 == model.query.lowercased() } }
     var body: some View {
         Group {
-            if let command = requestCommand {
+            if showingClipboard {
+                ClipboardView(history: model.clipboard, appearance: appearance, back: { showingClipboard = false }, close: close)
+            } else if let command = requestCommand {
                 RequestComposerView(model: model.requests, command: command, appearance: appearance, back: returnToSearch, close: close, setBackspace: setRequestBackspace)
             } else { searchContent }
         }
@@ -377,12 +381,14 @@ struct SearchView: View {
     }
     var searchContent: some View {
         VStack(spacing: 0) {
+            if model.clipboard.limitNotice { Text("Clipboard history is near 2 GB; oldest entries were removed.").font(.caption).foregroundStyle(appearance.foreground).padding(4).onTapGesture { model.clipboard.dismissNotice() } }
+            if let error = model.clipboard.error { Text(error).font(.caption).foregroundStyle(.red).padding(4) }
             LauncherHeader(appearance: appearance) {
                 TextField("", text: $model.query).textFieldStyle(.plain).font(appearance.inputFont).foregroundColor(appearance.headerForeground).accessibilityLabel(Text("Search")).accessibilityIdentifier("launcher.search")
-                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add request · proj project").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55)).lineLimit(1).allowsHitTesting(false) } }
+                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55)).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
                         model.selected = 0; clickedID = nil
-                        if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
+                        if ["add ", "proj ", "clip "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
                     }
                     .contextMenu {
                         Button("Cut") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }
@@ -630,7 +636,7 @@ final class KeyPanel: NSPanel {
         if let url = Bundle.main.url(forResource: "Doto", withExtension: "ttf") { CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) }
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let handlerStatus = InstallEventHandler(GetEventDispatcherTarget(), { _,event,ctx in guard let event, let ctx else { return OSStatus(eventNotHandledErr) }; var id = EventHotKeyID(); let result = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id); guard result == noErr, id.signature == 0x4B4C4954, id.id == 1 else { return OSStatus(eventNotHandledErr) }; let app = Unmanaged<AppDelegate>.fromOpaque(ctx).takeUnretainedValue(); DispatchQueue.main.async { app.toggle() }; return noErr }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &eventHandler)
-        if handlerStatus != noErr { model.error = "Shortcut event handler failed (\(handlerStatus))." }; model.registerHotKey(); model.refresh()
+        if handlerStatus != noErr { model.error = "Shortcut event handler failed (\(handlerStatus))." }; model.registerHotKey(); model.refresh(); model.clipboard.start()
         if CommandLine.arguments.contains("--preview-search") { DispatchQueue.main.async { self.toggle() } }
         if CommandLine.arguments.contains("--preview-settings") { DispatchQueue.main.async { self.openSettings() } }
     }
