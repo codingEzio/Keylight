@@ -20,6 +20,20 @@ struct PointerConfirmation: NSViewRepresentable {
     }
 }
 
+enum TrashOutcome: Equatable {
+    case alreadyEmpty, emptied, failed(String)
+}
+
+// Kept independent of Finder so the destructive decision can be verified with
+// an isolated fake; the UI calls this only after a pointer confirmation.
+enum TrashOperation {
+    static func confirmed(status: () -> Bool?, empty: () -> String?) -> TrashOutcome {
+        if status() == true { return .alreadyEmpty }
+        if let error = empty() { return .failed(error) }
+        return .emptied
+    }
+}
+
 struct EmptyTrashView: View {
     let appearance: LauncherAppearance
     let cancel: () -> Void
@@ -47,14 +61,18 @@ struct EmptyTrashView: View {
         running = true; error = nil
         DispatchQueue.main.async {
             // Recheck on confirmation so an earlier empty observation cannot go stale.
-            if trashIsEmpty() == true {
-                alreadyEmpty = true; done = true; running = false; return
+            let outcome = TrashOperation.confirmed(status: { trashIsEmpty() }) {
+                var details: NSDictionary?
+                let result = NSAppleScript(source: "tell application \"Finder\" to empty trash")?.executeAndReturnError(&details)
+                guard result == nil else { return nil }
+                return (details?[NSAppleScript.errorMessage] as? String) ?? NSLocalizedString("Could not empty the Trash.", comment: "")
             }
-            var details: NSDictionary?
-            let result = NSAppleScript(source: "tell application \"Finder\" to empty trash")?.executeAndReturnError(&details)
             running = false
-            if result == nil { error = (details?[NSAppleScript.errorMessage] as? String) ?? NSLocalizedString("Could not empty the Trash.", comment: "") }
-            else { done = true }
+            switch outcome {
+            case .alreadyEmpty: alreadyEmpty = true; done = true
+            case .emptied: done = true
+            case .failed(let message): error = message
+            }
         }
     }
     private func choice(_ title: LocalizedStringKey, destructive: Bool, action: @escaping () -> Void) -> some View {
