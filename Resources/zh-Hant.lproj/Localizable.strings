@@ -197,3 +197,6 @@
 "Yes, empty Trash" = "是，清空垃圾桶";
 "Could not empty the Trash." = "無法清空垃圾桶。";
 "Search · add · proj · clip · emp" = "搜尋 · add · proj · clip · emp";
+"Trash is already empty" = "垃圾桶已經是空的";
+"Trash is already empty. You can still continue." = "垃圾桶已經是空的，你仍可繼續。";
+"Could not check the Trash. You can still continue." = "無法檢查垃圾桶，你仍可繼續。";

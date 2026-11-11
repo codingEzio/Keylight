@@ -97,6 +97,9 @@ struct Entry: Identifiable {
     var matches: [Entry] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return entries }
+        if q.caseInsensitiveCompare("emp") == .orderedSame {
+            return [Entry(id: "keylight:empty-trash", name: NSLocalizedString("Empty Trash", comment: ""), url: nil, icon: NSImage(systemSymbolName: "trash", accessibilityDescription: nil) ?? NSImage(), isAction: true)]
+        }
         return Search.ordered(entries, query: q, name: { $0.name }, aliases: { SystemSettings.find($0.id)?.aliases ?? ($0.isAction ? [] : (aliases[$0.id] ?? [])) }, identity: { $0.id }, history: searchHistory)
     }
     func refresh() {
@@ -466,7 +469,7 @@ struct SearchView: View {
                 if model.matches.isEmpty { Text(LocalizedStringKey(model.isScanning ? "Searching…" : "No results")).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding() }
                 ForEach(Array(model.matches.enumerated()), id: \.element.id) { i, e in
                     Button {
-                        if clickedID == e.id && model.selected == i { model.run(e); close() }
+                        if clickedID == e.id && model.selected == i { if e.id == "keylight:empty-trash" { enterRequest("emp") } else { model.run(e); close() } }
                         else { model.selected = i; recentIndex = nil; recentPassed = true; clickedID = e.id; focus = true }
                     } label: {
                         HStack(spacing: 12) {

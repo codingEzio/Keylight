@@ -197,3 +197,6 @@
 "Yes, empty Trash" = "是，清倒废纸篓";
 "Could not empty the Trash." = "无法清倒废纸篓。";
 "Search · add · proj · clip · emp" = "搜索 · add · proj · clip · emp";
+"Trash is already empty" = "废纸篓已经是空的";
+"Trash is already empty. You can still continue." = "废纸篓已经是空的，你仍可继续。";
+"Could not check the Trash. You can still continue." = "无法检查废纸篓，你仍可继续。";

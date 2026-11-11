@@ -151,4 +151,4 @@ The first results row shows recent commands and searches used to open results. P
 
 ## Empty Trash
 
-Type `emp` and press Return to open the confirmation. Only a mouse press and release on “Yes, empty Trash” starts the Finder command; Return and Space do not confirm. “No” returns to search. macOS may request permission for Keylight to control Finder. Errors remain visible; no deletion is performed merely by typing the command.
+Type `emp` to see the Empty Trash result, then press Return to open the confirmation. Finder is queried to show whether Trash is empty; if it cannot be checked the confirmation remains available. Only a mouse press and release on “Yes, empty Trash” starts the Finder command; Return and Space do not confirm. “No” returns to search. macOS may request permission for Keylight to control Finder when checking Trash. Errors remain visible; no deletion is performed merely by typing the command.
