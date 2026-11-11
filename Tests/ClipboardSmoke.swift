@@ -76,7 +76,7 @@ import Darwin
         board.clearContents(); _ = board.setString("unseen", forType: .string)
         board.clearContents(); _ = board.setString("seen", forType: .string)
         history.poll()
-        precondition(history.error?.contains("missed") == true, "must report overwritten clipboard changes")
+        precondition(history.error == nil, "ownership changes alone must not report a save failure")
         for index in 0..<18 {
             board.clearContents(); _ = board.setString("overflow-\(index)", forType: .string); history.poll()
         }
@@ -88,7 +88,7 @@ import Darwin
         history.poll(); history.start(); history.poll(); history.finish()
         let afterOptIn = try ClipboardStore(directory: root.appendingPathComponent("queue"), limit: 5_000_000).page()
         precondition(afterOptIn.count == 28, "disabled or pre-consent clipboard must not be captured")
-        print("PASS: measured cap, real 2 GB boundary, eviction, restart, foreign file accounting, concurrent writers, queued captures, termination drain, opt-in boundary, overflow and missed-change warnings")
+        print("PASS: measured cap, real 2 GB boundary, eviction, restart, foreign file accounting, concurrent writers, queued captures, termination drain, opt-in boundary, overflow warning and ownership-gap handling")
         passed = true
     }
 }

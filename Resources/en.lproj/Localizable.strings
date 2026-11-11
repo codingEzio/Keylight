@@ -202,7 +202,7 @@
 "Could not check the Trash. You can still continue." = "Could not check the Trash. You can still continue.";
 "Clipboard storage is full; the item was not saved." = "Clipboard storage is full; the item was not saved.";
 "Clipboard history queue is full; an item was not saved." = "Clipboard history queue is full; an item was not saved.";
-"Some clipboard changes may have been missed before they could be read." = "Some clipboard changes may have been missed before they could be read.";
 "Record clipboard history" = "Record clipboard history";
 "Text is stored locally without encryption. Unmarked passwords may be saved." = "Text is stored locally without encryption. Unmarked passwords may be saved.";
 "Clipboard recording is off. Enable it in Settings." = "Clipboard recording is off. Enable it in Settings.";
+"Close" = "Close";
