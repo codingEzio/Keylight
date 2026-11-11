@@ -42,7 +42,7 @@ struct EmptyTrashView: View {
     }
     private func choice(_ title: LocalizedStringKey, destructive: Bool, action: @escaping () -> Void) -> some View {
         let color = destructive ? appearance.accent : appearance.foreground
-        return Text(title).font(.system(size: 15, weight: .semibold)).frame(width: 150, height: 40)
+        return Text(title).font(appearance.confirmationButtonFont).lineLimit(1).minimumScaleFactor(0.8).frame(width: 150, height: 40)
             .foregroundStyle(color)
             .background(color.opacity(destructive ? 0.16 : 0.07))
             .clipShape(RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
@@ -51,12 +51,12 @@ struct EmptyTrashView: View {
     }
     var body: some View {
         VStack(spacing: 0) {
-            LauncherHeader(appearance: appearance, showSearchIcon: false) { Text("Empty Trash").font(appearance.rowFont); Spacer() }
+            LauncherHeader(appearance: appearance, showSearchIcon: false) { Text("Empty Trash").font(appearance.confirmationButtonFont); Spacer() }
             VStack(spacing: 18) {
                 Image(systemName: done ? "checkmark.circle" : "trash").font(.system(size: 30)).foregroundStyle(appearance.accent)
-                Text(done ? "Trash emptied" : "Empty the Trash?").font(.system(size: 20, weight: .semibold))
-                if !done { Text("Items will be permanently deleted. Choose with the mouse.").font(.system(size: 13)).foregroundStyle(.secondary).multilineTextAlignment(.center) }
-                if let error { Text(error).font(.system(size: 13)).foregroundStyle(.red).multilineTextAlignment(.center).textSelection(.enabled) }
+                Text(done ? "Trash emptied" : "Empty the Trash?").font(appearance.confirmationTitleFont)
+                if !done { Text("Items will be permanently deleted. Choose with the mouse.").font(appearance.confirmationBodyFont).foregroundStyle(appearance.foreground.opacity(0.68)).multilineTextAlignment(.center) }
+                if let error { Text(error).font(appearance.confirmationBodyFont).foregroundStyle(.red).multilineTextAlignment(.center).textSelection(.enabled) }
                 if running { ProgressView().controlSize(.small) }
                 else if done { choice("Close", destructive: false, action: cancel) }
                 else { HStack(spacing: 12) { choice("No", destructive: false, action: cancel); choice("Yes, empty Trash", destructive: true, action: empty) } }

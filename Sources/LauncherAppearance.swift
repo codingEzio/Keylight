@@ -39,6 +39,14 @@ struct LauncherAppearance {
     }
     var rowFont: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 18) : nothing ? .system(size: 16, weight: .medium) : xp ? .custom("Tahoma", size: 16) : .system(size: 17, weight: .medium) }
     var inputFont: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 23) : nothing ? .custom("Doto-Black", size: 22) : xp ? .custom("Tahoma", size: 21) : .system(size: 22) }
+    var confirmationTitleFont: Font { inputFont }
+    var confirmationBodyFont: Font { placeholderFont }
+    var confirmationButtonFont: Font {
+        if cyber { return .custom("AvenirNextCondensed-DemiBold", size: 16) }
+        if nothing { return .custom("Doto-Black", size: 15) }
+        if xp { return .custom("Tahoma", size: 15) }
+        return .system(size: 15, weight: .semibold)
+    }
     var placeholderFont: Font {
         if cyber { return .custom("AvenirNextCondensed-DemiBold", size: 15) }
         if nothing { return .custom("Doto-Black", size: 14) }

@@ -438,7 +438,7 @@ struct SearchView: View {
                     .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip · emp").font(appearance.placeholderFont).foregroundColor(appearance.placeholderColor).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
                         model.selected = 0; clickedID = nil; recentIndex = nil; recentPassed = false
-                        if ["clip", "emp"].contains(value.lowercased()) { enterRequest(value.lowercased()) }
+                        if value.lowercased() == "clip" { enterRequest("clip") }
                         else if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
                     }
                     .contextMenu {
@@ -488,7 +488,7 @@ struct SearchView: View {
         .onAppear { setRecentKeyHandler { recentKey($0) }; focus = false; DispatchQueue.main.async { focus = true } }.onDisappear { setRecentKeyHandler(nil) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
-        .onKeyPress(.tab) { if let command = typedCommand { enterRequest(command); return .handled }; return .ignored }
+        .onKeyPress(.tab) { if let command = typedCommand, command != "emp" { enterRequest(command); return .handled }; return .ignored }
         .onKeyPress(.return) { if let command = typedCommand { enterRequest(command) } else if model.matches.indices.contains(model.selected) { model.run(model.matches[model.selected]); close() }; return .handled }
     }
 }
