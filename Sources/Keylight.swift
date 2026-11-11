@@ -455,9 +455,9 @@ struct SearchView: View {
                             HStack(spacing: 6) {
                                 ForEach(Array(model.recentCommands.enumerated()), id: \.offset) { index, value in
                                     Button { reuseRecent(index) } label: {
-                                        Text(value).lineLimit(1).frame(maxWidth: 140).font(.system(size: 12, weight: recentIndex == index ? .bold : .medium))
+                                        Text(value).lineLimit(1).frame(maxWidth: 140).font(.system(size: 12, weight: .medium))
                                             .foregroundStyle(recentIndex == index ? appearance.accent : appearance.foreground)
-                                            .padding(.horizontal, 9).padding(.vertical, 5)
+                                            .padding(.horizontal, 9).frame(height: 26)
                                             .background(recentIndex == index ? appearance.accent.opacity(0.15) : appearance.foreground.opacity(0.06))
                                             .clipShape(Capsule())
                                             .overlay(Capsule().strokeBorder(recentIndex == index ? appearance.accent : .clear, lineWidth: 1.5))
