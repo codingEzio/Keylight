@@ -432,7 +432,7 @@ struct SearchView: View {
             if let error = model.clipboard.error { Text(error).font(.caption).foregroundStyle(.red).padding(4) }
             LauncherHeader(appearance: appearance) {
                 TextField("", text: $model.query).textFieldStyle(.plain).font(appearance.inputFont).foregroundColor(appearance.headerForeground).accessibilityLabel(Text("Search")).accessibilityIdentifier("launcher.search")
-                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55)).lineLimit(1).allowsHitTesting(false) } }
+                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip").font(appearance.placeholderFont).foregroundColor(appearance.placeholderColor).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
                         model.selected = 0; clickedID = nil; recentIndex = nil; recentPassed = false
                         if value.lowercased() == "clip" { enterRequest("clip") }

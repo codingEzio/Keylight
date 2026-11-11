@@ -39,7 +39,16 @@ struct LauncherAppearance {
     }
     var rowFont: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 18) : nothing ? .system(size: 16, weight: .medium) : xp ? .custom("Tahoma", size: 16) : .system(size: 17, weight: .medium) }
     var inputFont: Font { cyber ? .custom("AvenirNextCondensed-DemiBold", size: 23) : nothing ? .custom("Doto-Black", size: 22) : xp ? .custom("Tahoma", size: 21) : .system(size: 22) }
-    var placeholderFont: Font { .system(size: 15, weight: .regular) }
+    var placeholderFont: Font {
+        if cyber { return .custom("AvenirNextCondensed-DemiBold", size: 15) }
+        if nothing { return .custom("Doto-Black", size: 14) }
+        if xp { return .custom("Tahoma", size: 15) }
+        return .system(size: 15, weight: .regular)
+    }
+    var placeholderColor: Color {
+        if cyber { return accent.opacity(dark ? 0.8 : 0.85) }
+        return headerForeground.opacity(xp ? 0.72 : 0.6)
+    }
 }
 
 struct LauncherHeader<Content: View>: View {

@@ -293,7 +293,7 @@ struct RequestComposerView: View {
                 }.buttonStyle(.plain).frame(maxWidth: 160, minHeight: 44).accessibilityLabel(Text("Choose another project"))
             }
             if picking {
-                TextField(LocalizedStringKey(model.choosingProject ? "Find projects" : "Find requests"), text: $filter, prompt: Text(LocalizedStringKey(model.choosingProject ? "Find projects" : "Find requests")).font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55))).textFieldStyle(.plain).focused($focus, equals: .project)
+                TextField(LocalizedStringKey(model.choosingProject ? "Find projects" : "Find requests"), text: $filter, prompt: Text(LocalizedStringKey(model.choosingProject ? "Find projects" : "Find requests")).font(appearance.placeholderFont).foregroundColor(appearance.placeholderColor)).textFieldStyle(.plain).focused($focus, equals: .project)
                     .accessibilityIdentifier("requests.projectSearch")
                     .onChange(of: filter) { _, _ in index = selectable.first ?? 0 }
             } else { Spacer(minLength: 0) }
