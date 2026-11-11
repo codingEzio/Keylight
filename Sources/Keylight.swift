@@ -24,6 +24,7 @@ struct Entry: Identifiable {
     @Published var folderJSON = "" { didSet { if let a = try? JSONDecoder().decode([String].self, from: Data(folderJSON.utf8)) { save(\.folders, a) }; if ready && !reloading { refresh() } } }
     @Published var excludeJSON = "[]" { didSet { if let a = try? JSONDecoder().decode([String].self, from: Data(excludeJSON.utf8)) { save(\.excluded, a) }; if ready && !reloading { refresh() } } }
     @Published var scripts = "" { didSet { save(\.scripts, scripts); if ready && !reloading { refresh() } } }
+    @Published var clipboardHistoryEnabled = false { didSet { save(\.clipboardHistoryEnabled, clipboardHistoryEnabled); if ready && !reloading { if clipboardHistoryEnabled { clipboard.start() } else { clipboard.stop() } } } }
     @Published var iconStyle = "Original" { didSet { save(\.iconStyle, iconStyle); if ready && !reloading { refresh() } } }
     @Published var aliases: [String: [String]] = [:]
     @Published private(set) var searchHistory = SearchHistory()
@@ -59,11 +60,12 @@ struct Entry: Identifiable {
     }
     func loadSettings() {
         do {
-            let c = try ConfigStore.read(); requests.apply(c.requests); let wasReady = ready; let shortcutChanged = modifier != c.modifier || key != c.key; let scanChanged = folderJSON != encode(c.folders) || excludeJSON != encode(c.excluded) || scripts != c.scripts || iconStyle != c.iconStyle; reloading = true
-            if theme != c.theme { theme = c.theme }; if modifier != c.modifier { modifier = c.modifier }; if key != c.key { key = c.key }
+            let c = try ConfigStore.read(); requests.apply(c.requests); let wasReady = ready; let shortcutChanged = modifier != c.modifier || key != c.key; let clipboardChanged = clipboardHistoryEnabled != c.clipboardHistoryEnabled; let scanChanged = folderJSON != encode(c.folders) || excludeJSON != encode(c.excluded) || scripts != c.scripts || iconStyle != c.iconStyle; reloading = true
+            if clipboardHistoryEnabled != c.clipboardHistoryEnabled { clipboardHistoryEnabled = c.clipboardHistoryEnabled }; if theme != c.theme { theme = c.theme }; if modifier != c.modifier { modifier = c.modifier }; if key != c.key { key = c.key }
             let foldersValue = encode(c.folders), excludedValue = encode(c.excluded)
             if folderJSON != foldersValue { folderJSON = foldersValue }; if excludeJSON != excludedValue { excludeJSON = excludedValue }; if scripts != c.scripts { scripts = c.scripts }; if iconStyle != c.iconStyle { iconStyle = c.iconStyle }; if aliases != c.aliases { aliases = c.aliases }
             reloading = false
+            if wasReady && clipboardChanged { if clipboardHistoryEnabled { clipboard.start() } else { clipboard.stop() } }
             if wasReady && shortcutChanged { registerHotKey() }; if wasReady && scanChanged { watchAppFolders(); refresh() }
         } catch { reloading = false; self.error = error.localizedDescription }
         do {
@@ -586,6 +588,9 @@ struct SettingsView: View {
                 HStack { Text("Shortcut"); Spacer(); Picker("", selection: $model.modifier) { ForEach(["⌘","⌥","⌃","⌘ ⇧","⌘ ⌥","⌃ ⌥","⌘ ⌥ ⇧"], id: \.self) { Text($0) } }.labelsHidden().frame(width: 100); Picker("", selection: $model.key) { ForEach(["Space"] + Array("ABCDEFGHIJKLMNOPQRSTUVWXYZ").map(String.init), id: \.self) { Text($0) } }.labelsHidden().frame(width: 110) }
                 Picker("Search theme", selection: $model.theme) { ForEach(["Liquid Glass", "Cyberpunk 2077", "Windows XP", "Nothing"], id: \.self) { Text($0) } }
                 Picker("App icons", selection: $model.iconStyle) { Text("Original (when available)").tag("Original"); Text("System").tag("System") }
+                Toggle("Record clipboard history", isOn: $model.clipboardHistoryEnabled)
+                    .accessibilityIdentifier("settings.clipboardHistory")
+                Text("Text is stored locally without encryption. Unmarked passwords may be saved.").font(.caption).foregroundStyle(.secondary)
                 if model.modifier == "⌘" && model.key == "Space" { Text("Spotlight may use this shortcut.").foregroundStyle(.secondary).font(.caption) }
                 if let error = model.error { Text(error).foregroundStyle(.red).font(.caption) }
             }
@@ -709,7 +714,7 @@ final class KeyPanel: NSPanel {
         if let url = Bundle.main.url(forResource: "Doto", withExtension: "ttf") { CTFontManagerRegisterFontsForURL(url as CFURL, .process, nil) }
         var spec = EventTypeSpec(eventClass: OSType(kEventClassKeyboard), eventKind: UInt32(kEventHotKeyPressed))
         let handlerStatus = InstallEventHandler(GetEventDispatcherTarget(), { _,event,ctx in guard let event, let ctx else { return OSStatus(eventNotHandledErr) }; var id = EventHotKeyID(); let result = GetEventParameter(event, EventParamName(kEventParamDirectObject), EventParamType(typeEventHotKeyID), nil, MemoryLayout<EventHotKeyID>.size, nil, &id); guard result == noErr, id.signature == 0x4B4C4954, id.id == 1 else { return OSStatus(eventNotHandledErr) }; let app = Unmanaged<AppDelegate>.fromOpaque(ctx).takeUnretainedValue(); DispatchQueue.main.async { app.toggle() }; return noErr }, 1, &spec, Unmanaged.passUnretained(self).toOpaque(), &eventHandler)
-        if handlerStatus != noErr { model.error = "Shortcut event handler failed (\(handlerStatus))." }; model.registerHotKey(); model.refresh(); model.clipboard.start()
+        if handlerStatus != noErr { model.error = "Shortcut event handler failed (\(handlerStatus))." }; model.registerHotKey(); model.refresh(); if model.clipboardHistoryEnabled { model.clipboard.start() }
         if CommandLine.arguments.contains("--preview-search") { DispatchQueue.main.async { self.toggle() } }
         if CommandLine.arguments.contains("--preview-settings") { DispatchQueue.main.async { self.openSettings() } }
     }
@@ -717,7 +722,7 @@ final class KeyPanel: NSPanel {
         if panel?.isVisible != true { toggle() }
         return false
     }
-    func applicationWillTerminate(_ notification: Notification) { model.requests.persistDraft() }
+    func applicationWillTerminate(_ notification: Notification) { model.clipboard.finish(); model.requests.persistDraft() }
     @objc func openSearch() { toggle() }
     @objc func refreshApps() { model.refresh() }
     func toggle() {
