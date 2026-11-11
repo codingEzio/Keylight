@@ -355,7 +355,7 @@ struct SearchView: View {
     var body: some View {
         Group {
             if showingClipboard {
-                ClipboardView(history: model.clipboard, appearance: appearance, back: { showingClipboard = false }, close: close)
+                ClipboardView(history: model.clipboard, appearance: appearance, back: { showingClipboard = false; returnToSearch() }, close: close)
             } else if let command = requestCommand {
                 RequestComposerView(model: model.requests, command: command, appearance: appearance, back: returnToSearch, close: close, setBackspace: setRequestBackspace)
             } else { searchContent }
@@ -388,7 +388,8 @@ struct SearchView: View {
                     .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip").font(appearance.placeholderFont).foregroundColor(appearance.headerForeground.opacity(0.55)).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
                         model.selected = 0; clickedID = nil
-                        if ["add ", "proj ", "clip "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
+                        if value.lowercased() == "clip" { enterRequest("clip") }
+                        else if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
                     }
                     .contextMenu {
                         Button("Cut") { NSApp.sendAction(#selector(NSText.cut(_:)), to: nil, from: nil) }

@@ -102,11 +102,11 @@ final class ClipboardStore: @unchecked Sendable {
             }
         }
     }
-    func copy(_ item: Item) {
+    func copy(_ item: Item, completion: @escaping () -> Void) {
         queue.async { [store] in
             let result = Result { try store.read(item.id) }
             DispatchQueue.main.async {
-                switch result { case .success(let text): let board = NSPasteboard.general; board.clearContents(); board.setString(text, forType: .string); self.change = board.changeCount; self.lastText = text
+                switch result { case .success(let text): let board = NSPasteboard.general; board.clearContents(); guard board.setString(text, forType: .string) else { self.error = NSLocalizedString("Could not copy to the clipboard.", comment: ""); return }; self.change = board.changeCount; self.lastText = text; completion()
                 case .failure(let failure): self.error = failure.localizedDescription }
             }
         }
@@ -119,16 +119,17 @@ struct ClipboardView: View {
     let back: () -> Void
     let close: () -> Void
     @State private var selected = 0
+    @FocusState private var focused: Bool
     var body: some View {
         VStack(spacing: 0) {
-            LauncherHeader(appearance: appearance) { HStack { Button(action: back) { Image(systemName: "chevron.left") }.buttonStyle(.plain); Text("Clipboard History").font(appearance.inputFont); Spacer() } }
+            LauncherHeader(appearance: appearance) { HStack { Button(action: back) { Image(systemName: "chevron.left") }.buttonStyle(.plain); Text("Clipboard History").font(appearance.inputFont); Spacer(); Text("↵ Copy · ⌘V Paste").font(.caption).foregroundStyle(.secondary) } }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
                         if let error = history.error { Text(error).foregroundStyle(.red).frame(maxWidth: .infinity, alignment: .leading) }
                         if history.items.isEmpty { Text("No clipboard history").foregroundStyle(.secondary).padding() }
                         ForEach(Array(history.items.enumerated()), id: \.element.id) { index, item in
-                            Button { history.copy(item); close() } label: {
+                            Button { history.copy(item, completion: close) } label: {
                                 Text(item.preview).lineLimit(2).frame(maxWidth: .infinity, alignment: .leading).padding(10).background(index == selected ? appearance.selection : .clear).clipShape(RoundedRectangle(cornerRadius: appearance.rowCornerRadius))
                             }.buttonStyle(.plain).id(item.id)
                         }
@@ -136,10 +137,10 @@ struct ClipboardView: View {
                     }.padding(8)
                 }.frame(height: LauncherAppearance.resultsHeight).onChange(of: selected) { _, value in if history.items.indices.contains(value) { proxy.scrollTo(history.items[value].id) } }
             }
-        }.onAppear { history.load() }
+        }.focusable().focused($focused).onAppear { history.load(); DispatchQueue.main.async { focused = true } }
             .onKeyPress(.escape) { back(); return .handled }
             .onKeyPress(.downArrow) { if selected == history.items.count - 1 && history.items.count >= 100 { history.load(more: true) }; selected = min(selected + 1, max(0, history.items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selected = max(0, selected - 1); return .handled }
-            .onKeyPress(.return) { if history.items.indices.contains(selected) { history.copy(history.items[selected]); close() }; return .handled }
+            .onKeyPress(.return) { if history.items.indices.contains(selected) { history.copy(history.items[selected], completion: close) }; return .handled }
     }
 }

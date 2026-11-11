@@ -187,3 +187,5 @@
 "Search · add · proj · clip" = "搜尋 · add · proj · clip";
 "Clipboard text exceeds 16 MB and was not saved." = "剪貼簿文字超過 16 MB，未儲存。";
 "Clipboard history is busy; an item was not saved." = "剪貼簿歷史忙碌中，有一筆內容未儲存。";
+"↵ Copy · ⌘V Paste" = "↵ 複製 · ⌘V 貼上";
+"Could not copy to the clipboard." = "無法複製到剪貼簿。";

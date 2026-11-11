@@ -187,3 +187,5 @@
 "Search · add · proj · clip" = "Search · add · proj · clip";
 "Clipboard text exceeds 16 MB and was not saved." = "Clipboard text exceeds 16 MB and was not saved.";
 "Clipboard history is busy; an item was not saved." = "Clipboard history is busy; an item was not saved.";
+"↵ Copy · ⌘V Paste" = "↵ Copy · ⌘V Paste";
+"Could not copy to the clipboard." = "Could not copy to the clipboard.";
