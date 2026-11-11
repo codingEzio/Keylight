@@ -44,11 +44,14 @@ struct LauncherAppearance {
 
 struct LauncherHeader<Content: View>: View {
     let appearance: LauncherAppearance
+    var showSearchIcon = true
     @ViewBuilder var content: () -> Content
     var body: some View {
         HStack(spacing: 12) {
-            if appearance.nothing { NothingSearchIcon() }
-            else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
+            if showSearchIcon {
+                if appearance.nothing { NothingSearchIcon() }
+                else { Image(systemName: "magnifyingglass").font(.system(size: 20)) }
+            }
             content()
         }
         .font(appearance.inputFont).foregroundStyle(appearance.headerForeground)

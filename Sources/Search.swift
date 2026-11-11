@@ -99,7 +99,7 @@ enum Search {
     static func ordered<T>(_ items: [T], query: String, name: (T) -> String, aliases: (T) -> [String], identity: (T) -> String, history: SearchHistory = SearchHistory()) -> [T] {
         guard !query.isEmpty else { return items }
         let preference = history.preference(for: query)
-        let defaults = ["cal": "/System/Applications/Calendar.app", "clc": "/System/Applications/Calculator.app"]
+        let defaults = ["cal": "/System/Applications/Calendar.app", "clc": "/System/Applications/Calculator.app", "app": "/System/Applications/Apps.app"]
         let preferredDefault = defaults[SearchHistory.normalized(query)]
         let matched = items.enumerated().compactMap { index, item -> (Int, T, Int, Int)? in
             guard let rank = rank(query, name: name(item), aliases: aliases(item)) else { return nil }

@@ -122,7 +122,7 @@ struct ClipboardView: View {
     @FocusState private var focused: Bool
     var body: some View {
         VStack(spacing: 0) {
-            LauncherHeader(appearance: appearance) { HStack { Button(action: back) { Image(systemName: "chevron.left") }.buttonStyle(.plain); Text("Clipboard History").font(appearance.inputFont); Spacer(); Text("↵ Copy · ⌘V Paste").font(.caption).foregroundStyle(.secondary) } }
+            LauncherHeader(appearance: appearance, showSearchIcon: false) { HStack { Button(action: back) { Image(systemName: "chevron.left").font(.system(size: 15, weight: .medium)) }.buttonStyle(.plain).accessibilityLabel(Text("Back to search")); Text("Clipboard History").font(appearance.rowFont); Spacer(); Text("↵ Copy · ⌘V Paste").font(.caption).foregroundStyle(.secondary) } }
             ScrollViewReader { proxy in
                 ScrollView {
                     LazyVStack(spacing: 2) {
@@ -137,7 +137,7 @@ struct ClipboardView: View {
                     }.padding(8)
                 }.frame(height: LauncherAppearance.resultsHeight).onChange(of: selected) { _, value in if history.items.indices.contains(value) { proxy.scrollTo(history.items[value].id) } }
             }
-        }.focusable().focused($focused).onAppear { history.load(); DispatchQueue.main.async { focused = true } }
+        }.focusable().focusEffectDisabled().focused($focused).onAppear { history.load(); DispatchQueue.main.async { focused = true } }
             .onKeyPress(.escape) { back(); return .handled }
             .onKeyPress(.downArrow) { if selected == history.items.count - 1 && history.items.count >= 100 { history.load(more: true) }; selected = min(selected + 1, max(0, history.items.count - 1)); return .handled }
             .onKeyPress(.upArrow) { selected = max(0, selected - 1); return .handled }
