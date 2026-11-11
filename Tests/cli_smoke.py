@@ -34,8 +34,10 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
         return p.stdout
     assert "config import" in run("--help"); run("unknown-command", expected=1)
     run("config", "import", str(source))
-    config.update({"aliases": {}, "iconStyle": "Original", "requests": {"projectRoot": "", "catalogURL": "", "queueFolder": "", "categories": ["joboss", "oss", "private"], "pinnedProjects": [], "model": "gpt-6.1-terra", "reasoningEffort": "high", "permissionsProfile": "Development"}})
+    config.update({"aliases": {}, "iconStyle": "Original", "clipboardHistoryEnabled": False, "requests": {"projectRoot": "", "catalogURL": "", "queueFolder": "", "categories": ["joboss", "oss", "private"], "pinnedProjects": [], "model": "gpt-6.1-terra", "reasoningEffort": "high", "permissionsProfile": "Development"}})
     assert json.loads(run("config", "show")) == config
+    run("config", "clipboard", "on"); assert json.loads(run("config", "show"))["clipboardHistoryEnabled"] is True
+    run("config", "clipboard", "off"); assert json.loads(run("config", "show"))["clipboardHistoryEnabled"] is False
     results = run("search")
     assert "Alpha\t" in results and "Hidden\t" not in results and "DotApp\t" in results and "Hello\t" in results
     assert "com.apple.Wallpaper-Settings.extension" in run("search", "wallpaper")

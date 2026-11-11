@@ -22,6 +22,14 @@ XP or Nothing shell. Hints use the placeholder. Use arrows and Return, or click
 a row. Escape goes back; empty input also supports Backspace. Shift Return
 inserts a line break while editing.
 
+The request workflow is optional. It requires a separately configured Godspeed
+Projects service that provides the `godspeed.project-groups/v1` catalog, plus
+an installed, signed-in compatible ChatGPT desktop app to send requests.
+Keylight does not include or start that service. On a fresh install, the project
+root, queue folder and catalog URL are empty; app search, clipboard history and
+Trash do not require the catalog or network. A previously fetched catalog can
+be used offline; sending still requires the desktop app and its service.
+
 In Settings → Requests, choose the queue folder, project root and Godspeed
 Projects endpoint (`/api/projects?group=all`). The default scope is JobOSS, OSS
 and Private. Other catalog categories are explicit opt-ins. Current/canonical
@@ -36,7 +44,7 @@ broader permission profile or a different model.
 
 Chat launch uses the installed desktop app's bundled app-server to prepare an
 empty thread, then its local IPC to apply settings and submit through the
-desktop owner. The desktop handles the AI run, approvals and further messages.
+desktop owner. The project name and first line of the request are used as the chat title. The desktop handles the AI run, approvals and further messages.
 This IPC is an internal desktop interface and may need updating after an app
 upgrade. An unavailable connection keeps the saved request and reports an
 error. A lost send acknowledgement is marked unconfirmed; open that chat to
@@ -143,7 +151,7 @@ Search for Wallpaper or Login Items & Extensions (also searchable as startup) to
 
 ## Clipboard history
 
-Type `clip` in the launcher to show history. Click an entry, or select it with the arrow keys and press Return; after the launcher closes, press ⌘V to paste. Keylight stores text locally while it is running, excluding file URLs, images and common concealed/transient clipboard types. Storage is private to the current user. It reserves 16 MB within the 2 GB budget and removes oldest entries when needed; the launcher shows a dismissible notice. Text over 16 MB and clipboard changes during a pending save are not saved and produce an error in the launcher. Clipboard contents may include sensitive text; they are stored unencrypted in the user account.
+Clipboard recording is off on a fresh installation and after upgrading from a version without this setting. Enable it in Settings → General → Record clipboard history (or `keylight config clipboard on`); `off` stops future capture without deleting existing history. Enabling does not capture the clipboard value copied before opt-in. Type `clip` in the launcher to show history. Click an entry, or select it with the arrow keys and press Return; after the launcher closes, press ⌘V to paste. Keylight stores text locally while it is running, excluding file URLs, images and common concealed/transient clipboard types. Storage is private to the current user. Its 2,000,000,000-byte budget counts the history directory and all its files using the larger of allocated and logical sizes; space is reserved for a new item and oldest Keylight records are removed when needed. Filesystem-internal metadata outside those measured objects is not included. Only Keylight's own record filenames are removed. A dismissible launcher notice reports removal. Up to 16 observed copies and 64 MB can wait for disk; overflow and failed saves are reported. Each text item is limited to 16 MB. macOS exposes only the current clipboard, not earlier values overwritten between polls; Keylight checks ten times per second and warns when it observes a change-count gap, but cannot recover or detect every missed item. History files are in `~/Library/Application Support/Keylight/Clipboard/`. Clipboard contents may include sensitive text, including passwords from apps that do not mark them as concealed; they are stored unencrypted in the user account.
 
 ## Recent commands
 
@@ -152,3 +160,5 @@ The first results row shows recent commands and searches used to open results. P
 ## Empty Trash
 
 Search `emp` or “Empty Trash” to find the command alongside other matches; select it and press Return to open the confirmation. Finder is queried to show whether Trash is empty; if it cannot be checked the confirmation remains available. Only a mouse press and release on “Yes, empty Trash” starts the Finder command; Return and Space do not confirm. “No” returns to search. macOS may request permission for Keylight to control Finder when checking Trash. Errors remain visible; no deletion is performed merely by typing the command.
+
+Run `sh Tests/clipboard_smoke.sh` and `sh Tests/trash_safety_smoke.sh` for isolated clipboard and Trash confirmation checks. They use synthetic data and never empty the real Trash.

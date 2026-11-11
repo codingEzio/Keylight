@@ -17,6 +17,7 @@ enum CLI {
       Keylight config exclude add|remove APP_PATH
       Keylight config scripts PATH|clear
       Keylight config icons Original|System
+      Keylight config clipboard on|off Enable or disable text clipboard recording
       Keylight config alias add|remove APP_PATH ALIAS
       Keylight config learning reset    Reset learned search ranking
       Keylight config requests FIELD VALUE
@@ -123,6 +124,9 @@ enum CLI {
                         }
                     }
                     return 0
+                }
+                if args.count == 3 && args[1] == "clipboard" && ["on", "off"].contains(args[2]) {
+                    try ConfigStore.update { $0.clipboardHistoryEnabled = args[2] == "on" }; return 0
                 }
                 if args == ["config", "learning", "reset"] { try SearchHistoryStore.reset(); return 0 }
                 if args.count == 2 && args[1] == "show" { print(String(decoding: try ConfigStore.encode(ConfigStore.read()), as: UTF8.self)); return 0 }

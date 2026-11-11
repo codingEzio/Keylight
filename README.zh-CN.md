@@ -7,6 +7,8 @@
 
 输入 `add` 选项目，新建或追加待处理请求；选中已有请求后按 ⌘Return 发送。`proj` 直接创建并发送一次性请求。已发送原文件保留，待处理项目下次仍可见。「设置 → 请求」可调整范围、置顶、队列与预设；默认为 `gpt-6.1-terra`、`high`、`Development`。
 
+可选的请求功能需要配置 Godspeed Projects 服务；发送还需要兼容且已登录的 ChatGPT 桌面应用。在设置中开启后，`clip` 可打开本地文本历史，`emp` 打开需鼠标确认的清倒废纸篓操作。限制和权限见[指南](docs/guide.md)。
+
 ![Keylight search](docs/images/search.png)
 
 ## 开始使用

@@ -200,3 +200,9 @@
 "Trash is already empty" = "废纸篓已经是空的";
 "Trash is already empty. You can still continue." = "废纸篓已经是空的，你仍可继续。";
 "Could not check the Trash. You can still continue." = "无法检查废纸篓，你仍可继续。";
+"Clipboard storage is full; the item was not saved." = "剪贴板存储已满，内容未保存。";
+"Clipboard history queue is full; an item was not saved." = "剪贴板历史队列已满，有一条内容未保存。";
+"Some clipboard changes may have been missed before they could be read." = "部分剪贴板变化可能在读取前被覆盖。";
+"Record clipboard history" = "记录剪贴板历史";
+"Text is stored locally without encryption. Unmarked passwords may be saved." = "文本会未经加密地保存在本机；未标记的密码可能被记录。";
+"Clipboard recording is off. Enable it in Settings." = "剪贴板记录已关闭。可在设置中开启。";

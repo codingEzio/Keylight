@@ -7,6 +7,8 @@ Search matches abbreviations and learns from your app choices on this Mac.
 
 Type `add` to choose a project, create or append a pending request, or select one and press ⌘Return to send it. `proj` creates and sends a one-off request. Sent files remain; pending ones appear next time. Configure scope, pins, queue and presets in Settings → Requests. Defaults: `gpt-6.1-terra`, `high`, `Development`.
 
+The optional request workflow requires a configured Godspeed Projects service; sending also requires a compatible signed-in ChatGPT desktop app. When enabled in Settings, `clip` opens local text history, and `emp` opens a mouse-confirmed Trash action. See the [guide](docs/guide.md) for limits and permissions.
+
 ![Keylight search](docs/images/search.png)
 
 ## Get started

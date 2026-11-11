@@ -7,6 +7,8 @@
 
 輸入 `add` 選專案，新增或追加待處理請求；選取既有請求後按 ⌘Return 傳送。`proj` 直接建立並傳送一次性請求。已傳送原檔保留，待處理項目下次仍可見。「設定 → 請求」可調整範圍、置頂、佇列與預設；預設為 `gpt-6.1-terra`、`high`、`Development`。
 
+選用的請求功能需要設定 Godspeed Projects 服務；傳送還需要相容且已登入的 ChatGPT 桌面 App。在設定中開啟後，`clip` 可開啟本機文字歷史，`emp` 開啟需滑鼠確認的清空垃圾桶操作。限制和權限請見[指南](docs/guide.md)。
+
 ![Keylight search](docs/images/search.png)
 
 ## 開始使用

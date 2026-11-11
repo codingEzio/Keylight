@@ -15,6 +15,14 @@ import Foundation
         }
         try app("Preview", in: systemApps)
         var config = KeylightConfig()
+        precondition(!config.clipboardHistoryEnabled, "Fresh installations must not record clipboard text")
+        let encoded = try ConfigStore.encode(config)
+        let restored = try ConfigStore.decode(encoded)
+        precondition(!restored.clipboardHistoryEnabled, "Disabled clipboard setting must persist")
+        var legacy = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
+        legacy.removeValue(forKey: "clipboardHistoryEnabled")
+        let legacyConfig = try ConfigStore.decode(JSONSerialization.data(withJSONObject: legacy))
+        precondition(!legacyConfig.clipboardHistoryEnabled, "Legacy installations must not silently opt in")
         config.folders = [systemApps.path, home.path + "/Applications", home.path + "/Applications/Chrome Apps.localized"]
         let initial = try CLI.items(config, includeCommands: false, home: home.path)
         precondition(initial.map(\.name).contains("Preview"), "A missing optional folder must not hide system apps")
@@ -30,6 +38,6 @@ import Foundation
         } catch ConfigError.io(let message) {
             precondition(message.contains("Missing Custom"))
         }
-        print("PASS: first-run search, later-created default folder, missing custom folder")
+        print("PASS: opt-in clipboard default/readback, first-run search, later-created default folder, missing custom folder")
     }
 }
