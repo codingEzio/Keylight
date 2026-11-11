@@ -189,3 +189,11 @@
 "Clipboard history is busy; an item was not saved." = "剪贴板历史正忙，有一条内容未保存。";
 "↵ Copy · ⌘V Paste" = "↵ 复制 · ⌘V 粘贴";
 "Could not copy to the clipboard." = "无法复制到剪贴板。";
+"Empty Trash" = "清倒废纸篓";
+"Trash emptied" = "废纸篓已清空";
+"Empty the Trash?" = "清倒废纸篓？";
+"Items will be permanently deleted. Choose with the mouse." = "项目将被永久删除。请用鼠标选择。";
+"No" = "否";
+"Yes, empty Trash" = "是，清倒废纸篓";
+"Could not empty the Trash." = "无法清倒废纸篓。";
+"Search · add · proj · clip · emp" = "搜索 · add · proj · clip · emp";

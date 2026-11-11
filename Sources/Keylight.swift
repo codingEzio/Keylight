@@ -353,6 +353,7 @@ struct SearchView: View {
     @State private var clickedID: String?
     @State private var requestCommand: String?
     @State private var showingClipboard = false
+    @State private var showingEmptyTrash = false
     @State private var recentIndex: Int?
     @State private var recentPassed = false
     @Environment(\.colorScheme) private var colorScheme
@@ -365,15 +366,17 @@ struct SearchView: View {
         let match = Text(String(name[range])).underline()
         return Text("\(before)\(match)\(after)")
     }
-    private func enterRequest(_ command: String) { model.rememberCommand(command); recentIndex = nil; if command == "clip" { showingClipboard = true } else { requestCommand = command }; model.query = "" }
+    private func enterRequest(_ command: String) { model.rememberCommand(command); recentIndex = nil; if command == "clip" { showingClipboard = true } else if command == "emp" { showingEmptyTrash = true } else { requestCommand = command }; model.query = "" }
     private func returnToSearch() {
         requestCommand = nil; model.query = ""; focus = false
         DispatchQueue.main.async { focus = true }
     }
-    private var typedCommand: String? { ["add", "proj", "clip"].first { $0 == model.query.lowercased() } }
+    private var typedCommand: String? { ["add", "proj", "clip", "emp"].first { $0 == model.query.lowercased() } }
     var body: some View {
         Group {
-            if showingClipboard {
+            if showingEmptyTrash {
+                EmptyTrashView(appearance: appearance, cancel: { showingEmptyTrash = false; returnToSearch() })
+            } else if showingClipboard {
                 ClipboardView(history: model.clipboard, appearance: appearance, back: { showingClipboard = false; returnToSearch() }, close: close)
             } else if let command = requestCommand {
                 RequestComposerView(model: model.requests, command: command, appearance: appearance, back: returnToSearch, close: close, setBackspace: setRequestBackspace)
@@ -404,7 +407,7 @@ struct SearchView: View {
         recentIndex = nil; recentPassed = false; model.query = value; focus = true
     }
     private func recentKey(_ key: UInt16) -> Bool {
-        guard requestCommand == nil, !showingClipboard else { return false }
+        guard requestCommand == nil, !showingClipboard, !showingEmptyTrash else { return false }
         switch key {
         case 125: // Down: history row, then normal results.
             if recentIndex != nil { recentIndex = nil; recentPassed = true; model.selected = 0; return true }
@@ -432,10 +435,10 @@ struct SearchView: View {
             if let error = model.clipboard.error { Text(error).font(.caption).foregroundStyle(.red).padding(4) }
             LauncherHeader(appearance: appearance) {
                 TextField("", text: $model.query).textFieldStyle(.plain).font(appearance.inputFont).foregroundColor(appearance.headerForeground).accessibilityLabel(Text("Search")).accessibilityIdentifier("launcher.search")
-                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip").font(appearance.placeholderFont).foregroundColor(appearance.placeholderColor).lineLimit(1).allowsHitTesting(false) } }
+                    .overlay(alignment: .leading) { if model.query.isEmpty { Text("Search · add · proj · clip · emp").font(appearance.placeholderFont).foregroundColor(appearance.placeholderColor).lineLimit(1).allowsHitTesting(false) } }
                     .focused($focus).onChange(of: model.query) { _,value in
                         model.selected = 0; clickedID = nil; recentIndex = nil; recentPassed = false
-                        if value.lowercased() == "clip" { enterRequest("clip") }
+                        if ["clip", "emp"].contains(value.lowercased()) { enterRequest(value.lowercased()) }
                         else if ["add ", "proj "].contains(value.lowercased()) { enterRequest(value.trimmingCharacters(in: .whitespaces).lowercased()) }
                     }
                     .contextMenu {

@@ -189,3 +189,11 @@
 "Clipboard history is busy; an item was not saved." = "Clipboard history is busy; an item was not saved.";
 "↵ Copy · ⌘V Paste" = "↵ Copy · ⌘V Paste";
 "Could not copy to the clipboard." = "Could not copy to the clipboard.";
+"Empty Trash" = "Empty Trash";
+"Trash emptied" = "Trash emptied";
+"Empty the Trash?" = "Empty the Trash?";
+"Items will be permanently deleted. Choose with the mouse." = "Items will be permanently deleted. Choose with the mouse.";
+"No" = "No";
+"Yes, empty Trash" = "Yes, empty Trash";
+"Could not empty the Trash." = "Could not empty the Trash.";
+"Search · add · proj · clip · emp" = "Search · add · proj · clip · emp";

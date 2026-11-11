@@ -148,3 +148,7 @@ Type `clip` in the launcher to show history. Click an entry, or select it with t
 ## Recent commands
 
 The first results row shows recent commands and searches used to open results. Press Down to select the row, Left or Right to choose, and Return to restore a term. Press Down again to move into results. The most recent 50 distinct terms are saved locally; existing learned app searches appear until newer terms replace them. `clip` opens its history when restored. Unsubmitted input is not saved.
+
+## Empty Trash
+
+Type `emp` to open the confirmation. Only a mouse press and release on “Yes, empty Trash” starts the Finder command; Return and Space do not confirm. “No” returns to search. macOS may request permission for Keylight to control Finder. Errors remain visible; no deletion is performed merely by typing the command.

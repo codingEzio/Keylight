@@ -30,14 +30,14 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>Keylight</string>
 <key>CFBundleIdentifier</key><string>com.alex.Keylight</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.11</string>
-<key>CFBundleVersion</key><string>20</string>
+<key>CFBundleShortVersionString</key><string>0.2.12</string>
+<key>CFBundleVersion</key><string>21</string>
 <key>CFBundleIconFile</key><string>Keylight</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>
 <key>LSUIElement</key><true/>
 <key>NSPrincipalClass</key><string>NSApplication</string>
-<key>NSAppleEventsUsageDescription</key><string>Keylight uses System Events only when you run Toggle Dark Mode.</string>
+<key>NSAppleEventsUsageDescription</key><string>Keylight uses Finder to empty Trash after your confirmation and System Events for Toggle Dark Mode.</string>
 </dict></plist>
 PLIST
 codesign --force --sign "${KEYLIGHT_SIGN_IDENTITY:--}" "$app"
