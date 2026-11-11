@@ -454,14 +454,7 @@ struct SearchView: View {
                         ScrollView(.horizontal, showsIndicators: false) {
                             HStack(spacing: 6) {
                                 ForEach(Array(model.recentCommands.enumerated()), id: \.offset) { index, value in
-                                    Button { reuseRecent(index) } label: {
-                                        Text(value).lineLimit(1).frame(maxWidth: 140).font(.system(size: 12, weight: .medium))
-                                            .foregroundStyle(recentIndex == index ? appearance.accent : appearance.foreground)
-                                            .padding(.horizontal, 9).frame(height: 26)
-                                            .background(recentIndex == index ? appearance.accent.opacity(0.15) : appearance.foreground.opacity(0.06))
-                                            .clipShape(Capsule())
-                                            .overlay(Capsule().strokeBorder(recentIndex == index ? appearance.accent : .clear, lineWidth: 1.5))
-                                    }.buttonStyle(.plain).id(index)
+                                    RecentCommandChip(value: value, selected: recentIndex == index, appearance: appearance) { reuseRecent(index) }.id(index)
                                 }
                             }
                         }.onChange(of: recentIndex) { _, index in if let index { recentProxy.scrollTo(index) } }

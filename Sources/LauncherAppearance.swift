@@ -68,3 +68,35 @@ struct LauncherHeader<Content: View>: View {
         .overlay(alignment: .bottom) { if !appearance.nothing { Divider() } }
     }
 }
+
+// Geometry stays fixed while pointer and keyboard states change.
+struct RecentCommandChip: View {
+    let value: String
+    let selected: Bool
+    let appearance: LauncherAppearance
+    let action: () -> Void
+    @State private var hovered = false
+
+    private var corner: CGFloat { appearance.nothing ? 13 : appearance.cyber ? 3 : appearance.xp ? 4 : 9 }
+    private var accent: Color {
+        if appearance.xp { return appearance.dark ? Color(red: 0.52, green: 0.73, blue: 1) : Color(red: 0.10, green: 0.30, blue: 0.65) }
+        return appearance.accent
+    }
+    private var base: Color {
+        if appearance.cyber { return appearance.accent.opacity(appearance.dark ? 0.09 : 0.06) }
+        if appearance.xp { return appearance.dark ? .white.opacity(0.08) : Color(red: 0.83, green: 0.89, blue: 0.98) }
+        return appearance.foreground.opacity(appearance.dark ? 0.07 : 0.05)
+    }
+    var body: some View {
+        Button(action: action) {
+            Text(value).lineLimit(1).frame(maxWidth: 140)
+                .font(appearance.cyber ? .custom("AvenirNextCondensed-DemiBold", size: 14) : appearance.xp ? .custom("Tahoma", size: 12) : .system(size: 12, weight: .medium))
+                .foregroundStyle(selected ? accent : appearance.rowForeground)
+                .padding(.horizontal, 10).frame(height: 26)
+                .background(selected ? accent.opacity(appearance.dark ? 0.22 : 0.13) : hovered ? accent.opacity(appearance.dark ? 0.14 : 0.09) : base)
+                .clipShape(RoundedRectangle(cornerRadius: corner))
+                .overlay(RoundedRectangle(cornerRadius: corner).strokeBorder(selected ? accent : hovered ? accent.opacity(0.55) : appearance.border.opacity(appearance.cyber || appearance.xp ? 0.7 : 0.35), lineWidth: selected ? 1.5 : 1))
+                .contentShape(RoundedRectangle(cornerRadius: corner))
+        }.buttonStyle(.plain).onHover { hovered = $0 }
+    }
+}
