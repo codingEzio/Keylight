@@ -30,8 +30,8 @@ cat > "$app/Contents/Info.plist" <<'PLIST'
 <key>CFBundleExecutable</key><string>Keylight</string>
 <key>CFBundleIdentifier</key><string>com.alex.Keylight</string>
 <key>CFBundlePackageType</key><string>APPL</string>
-<key>CFBundleShortVersionString</key><string>0.2.14</string>
-<key>CFBundleVersion</key><string>23</string>
+<key>CFBundleShortVersionString</key><string>0.2.15</string>
+<key>CFBundleVersion</key><string>24</string>
 <key>CFBundleIconFile</key><string>Keylight</string>
 <key>CFBundleDevelopmentRegion</key><string>en</string>
 <key>LSMinimumSystemVersion</key><string>26.0</string>

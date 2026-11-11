@@ -94,13 +94,14 @@ struct Entry: Identifiable {
     var folders: [String] { (try? JSONDecoder().decode([String].self, from: Data(folderJSON.utf8))) ?? defaults }
     var excluded: [String] { (try? JSONDecoder().decode([String].self, from: Data(excludeJSON.utf8))) ?? [] }
     func encode(_ a: [String]) -> String { String(data: (try? JSONEncoder().encode(a)) ?? Data("[]".utf8), encoding: .utf8) ?? "[]" }
+    private lazy var emptyTrashEntry = Entry(id: "keylight:empty-trash", name: NSLocalizedString("Empty Trash", comment: ""), url: nil, icon: NSImage(systemSymbolName: "trash", accessibilityDescription: nil) ?? NSImage(), isAction: true)
     var matches: [Entry] {
         let q = query.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !q.isEmpty else { return entries }
-        if q.caseInsensitiveCompare("emp") == .orderedSame {
-            return [Entry(id: "keylight:empty-trash", name: NSLocalizedString("Empty Trash", comment: ""), url: nil, icon: NSImage(systemSymbolName: "trash", accessibilityDescription: nil) ?? NSImage(), isAction: true)]
-        }
-        return Search.ordered(entries, query: q, name: { $0.name }, aliases: { SystemSettings.find($0.id)?.aliases ?? ($0.isAction ? [] : (aliases[$0.id] ?? [])) }, identity: { $0.id }, history: searchHistory)
+        return Search.ordered(entries + [emptyTrashEntry], query: q, name: { $0.name }, aliases: { entry in
+            if entry.id == "keylight:empty-trash" { return ["emp", "empty trash"] }
+            return SystemSettings.find(entry.id)?.aliases ?? (entry.isAction ? [] : (aliases[entry.id] ?? []))
+        }, identity: { $0.id }, history: searchHistory)
     }
     func refresh() {
         refreshVersion += 1
@@ -374,7 +375,7 @@ struct SearchView: View {
         requestCommand = nil; model.query = ""; focus = false
         DispatchQueue.main.async { focus = true }
     }
-    private var typedCommand: String? { ["add", "proj", "clip", "emp"].first { $0 == model.query.lowercased() } }
+    private var typedCommand: String? { ["add", "proj", "clip"].first { $0 == model.query.lowercased() } }
     var body: some View {
         Group {
             if showingEmptyTrash {
@@ -432,6 +433,10 @@ struct SearchView: View {
         default: return false
         }
     }
+    private func activateResult(_ entry: Entry) {
+        if entry.id == "keylight:empty-trash" { enterRequest("emp") }
+        else { model.run(entry); close() }
+    }
     var searchContent: some View {
         VStack(spacing: 0) {
             if model.clipboard.limitNotice { Text("Clipboard history is near 2 GB; oldest entries were removed.").font(.caption).foregroundStyle(appearance.foreground).padding(4).onTapGesture { model.clipboard.dismissNotice() } }
@@ -469,7 +474,7 @@ struct SearchView: View {
                 if model.matches.isEmpty { Text(LocalizedStringKey(model.isScanning ? "Searching…" : "No results")).foregroundStyle(.secondary).frame(maxWidth: .infinity, alignment: .leading).padding() }
                 ForEach(Array(model.matches.enumerated()), id: \.element.id) { i, e in
                     Button {
-                        if clickedID == e.id && model.selected == i { if e.id == "keylight:empty-trash" { enterRequest("emp") } else { model.run(e); close() } }
+                        if clickedID == e.id && model.selected == i { activateResult(e) }
                         else { model.selected = i; recentIndex = nil; recentPassed = true; clickedID = e.id; focus = true }
                     } label: {
                         HStack(spacing: 12) {
@@ -491,8 +496,8 @@ struct SearchView: View {
         .onAppear { setRecentKeyHandler { recentKey($0) }; focus = false; DispatchQueue.main.async { focus = true } }.onDisappear { setRecentKeyHandler(nil) }.onKeyPress(.escape) { close(); return .handled }
         .onKeyPress(.downArrow) { clickedID = nil; model.selected = min(model.selected+1, max(0, model.matches.count-1)); return .handled }
         .onKeyPress(.upArrow) { clickedID = nil; model.selected = max(0, model.selected-1); return .handled }
-        .onKeyPress(.tab) { if let command = typedCommand, command != "emp" { enterRequest(command); return .handled }; return .ignored }
-        .onKeyPress(.return) { if let command = typedCommand { enterRequest(command) } else if model.matches.indices.contains(model.selected) { model.run(model.matches[model.selected]); close() }; return .handled }
+        .onKeyPress(.tab) { if let command = typedCommand { enterRequest(command); return .handled }; return .ignored }
+        .onKeyPress(.return) { if let command = typedCommand { enterRequest(command) } else if model.matches.indices.contains(model.selected) { activateResult(model.matches[model.selected]) }; return .handled }
     }
 }
 
