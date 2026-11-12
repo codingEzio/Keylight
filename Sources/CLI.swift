@@ -1,3 +1,6 @@
+import AppKit
+
+import ApplicationServices
 import Foundation
 import Darwin
 
@@ -175,6 +178,11 @@ enum CLI {
                 let config = try ConfigStore.read(); let results = try items(config).filter { $0.name.caseInsensitiveCompare(args[1]) == .orderedSame || (!$0.command && (config.aliases[$0.path] ?? []).contains { $0.caseInsensitiveCompare(args[1]) == .orderedSame }) }
                 guard results.count == 1, let item = results.first else { throw ConfigError.io(results.isEmpty ? "No exact match." : "Multiple exact matches; choose a unique name.") }
                 let setting = SystemSettings.find(item.path)
+                if let setting, SettingsNavigator.needsAccessibility(setting) {
+                    guard AXIsProcessTrusted() else { throw ConfigError.io("Allow Keylight in System Settings → Privacy & Security → Accessibility, then try again.") }
+                    guard NSWorkspace.shared.open(setting.url), SettingsNavigator.navigate(setting) else { throw ConfigError.io("Could not locate the control in System Settings.") }
+                    return 0
+                }
                 let p = Process(); p.executableURL = URL(fileURLWithPath: item.command && setting == nil ? item.path : "/usr/bin/open"); if let setting { p.arguments = [setting.url.absoluteString] } else if !item.command { p.arguments = [item.path] }; try p.run(); p.waitUntilExit(); return p.terminationStatus
             }
             throw ConfigError.io(help)

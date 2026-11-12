@@ -206,3 +206,9 @@
 "Text is stored locally without encryption. Unmarked passwords may be saved." = "文字會未經加密地保存在本機；未標記的密碼可能被記錄。";
 "Clipboard recording is off. Enable it in Settings." = "剪貼簿記錄已關閉。可在設定中開啟。";
 "Close" = "關閉";
+"Default Web Browser" = "預設網頁瀏覽器";
+"Menu Bar App Visibility" = "選單列 App 顯示";
+
+"Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again." = "請在系統設定 → 隱私權與安全性 → 輔助使用中允許 Keylight，然後再次執行此捷徑。";
+
+"Couldn’t locate the control in System Settings. Please open it manually." = "無法在系統設定中找到該控制項，請手動開啟。";

@@ -43,6 +43,10 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
     assert "com.apple.Wallpaper-Settings.extension" in run("search", "wallpaper")
     assert "com.apple.LoginItems-Settings.extension" in run("search", "startup")
     assert "com.apple.Wallpaper-Settings.extension" in run("search", "桌布")
+    assert "com.apple.Desktop-Settings.extension?default-web-browser" in run("search", "default browser")
+    assert "com.apple.Desktop-Settings.extension?default-web-browser" in run("search", "默认浏览器")
+    assert "com.apple.ControlCenter-Settings.extension" in run("search", "menu bar apps")
+    assert "com.apple.ControlCenter-Settings.extension" in run("search", "菜单栏应用")
     before_preview = json.loads(run("config", "show"))
     all_apps = run("apps", "all"); assert "hide\tHidden\t" in all_apps and "show\tAlpha\t" in all_apps
     background = run("apps", "background"); assert "HelperService" in background and "MenuBarTool" not in background

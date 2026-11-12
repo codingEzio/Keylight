@@ -206,3 +206,9 @@
 "Text is stored locally without encryption. Unmarked passwords may be saved." = "Text is stored locally without encryption. Unmarked passwords may be saved.";
 "Clipboard recording is off. Enable it in Settings." = "Clipboard recording is off. Enable it in Settings.";
 "Close" = "Close";
+"Default Web Browser" = "Default Web Browser";
+"Menu Bar App Visibility" = "Menu Bar App Visibility";
+
+"Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again." = "Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again.";
+
+"Couldn’t locate the control in System Settings. Please open it manually." = "Couldn’t locate the control in System Settings. Please open it manually.";

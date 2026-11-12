@@ -24,6 +24,13 @@ import Foundation
         let legacyConfig = try ConfigStore.decode(JSONSerialization.data(withJSONObject: legacy))
         precondition(!legacyConfig.clipboardHistoryEnabled, "Legacy installations must not silently opt in")
         config.folders = [systemApps.path, home.path + "/Applications", home.path + "/Applications/Chrome Apps.localized"]
+        let translations = root.appendingPathComponent("settings-fixture.plist")
+        let fixture = ["en": ["label": "Example browser"], "ja": ["label": "ブラウザ"], "fr": ["label": "Navigateur"]]
+        try PropertyListSerialization.data(fromPropertyList: fixture, format: .binary, options: 0).write(to: translations)
+        let japanese = SystemSettings.localizedAliases(table: translations, key: "label", preferredLanguages: ["ja-JP"])
+        let french = SystemSettings.localizedAliases(table: translations, key: "label", preferredLanguages: ["fr-FR"])
+        precondition(japanese == ["ブラウザ"] && french == ["Navigateur"], "System labels must follow the selected locale")
+        precondition(SystemSettings.localizedAliases(table: root.appendingPathComponent("missing"), key: "label").isEmpty)
         let initial = try CLI.items(config, includeCommands: false, home: home.path)
         precondition(initial.map(\.name).contains("Preview"), "A missing optional folder must not hide system apps")
 
