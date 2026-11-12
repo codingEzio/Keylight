@@ -259,7 +259,18 @@ struct Entry: Identifiable {
             return
         }
         if let setting = SystemSettings.find(e.id) {
-            if !NSWorkspace.shared.open(setting.url) { report(NSLocalizedString("Couldn’t open System Settings.", comment: "")) }
+            if SettingsNavigator.needsAccessibility(setting) && !SettingsNavigator.requestAccessIfNeeded() {
+                report(NSLocalizedString("Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again.", comment: ""))
+                return
+            }
+            guard NSWorkspace.shared.open(setting.url) else { report(NSLocalizedString("Couldn’t open System Settings.", comment: "")); return }
+            if SettingsNavigator.needsAccessibility(setting) {
+                DispatchQueue.global(qos: .userInitiated).async {
+                    if !SettingsNavigator.navigate(setting) {
+                        DispatchQueue.main.async { self.report(NSLocalizedString("Couldn’t locate the control in System Settings. Please open it manually.", comment: "")) }
+                    }
+                }
+            }
             return
         }
         guard !commandRunning else { report(NSLocalizedString("A command is already running.", comment: "")); return }
