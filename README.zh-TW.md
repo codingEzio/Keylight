@@ -9,6 +9,8 @@
 
 選用的請求功能需要設定 Godspeed Projects 服務；傳送還需要相容且已登入的 ChatGPT 桌面 App。在設定中開啟後，`clip` 可開啟本機文字歷史，`emp` 開啟需滑鼠確認的清空垃圾桶操作。限制和權限請見[指南](docs/guide.md)。
 
+搜尋「預設瀏覽器」或「選單列」可開啟系統設定中的對應控制項。這兩個捷徑需要輔助使用權限：在「系統設定 → 隱私權與安全性 → 輔助使用」中允許 Keylight，然後再次執行。設定值需自行選擇。
+
 ![Keylight search](docs/images/search.png)
 
 ## 開始使用

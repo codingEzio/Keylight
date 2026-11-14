@@ -9,6 +9,8 @@ macOS 앱과 로컬 명령을 빠르게 실행합니다.
 
 선택 사항인 요청 기능에는 설정된 Godspeed Projects 서비스가 필요하며, 전송에는 호환되는 로그인된 ChatGPT 데스크톱 앱도 필요합니다. 설정에서 활성화하면 `clip`은 로컬 텍스트 기록을, `emp`는 마우스 확인이 필요한 휴지통 작업을 엽니다. 제한과 권한은 [가이드](docs/guide.md)를 참조하세요.
 
+‘Default Web Browser’ 또는 ‘Menu Bar App Visibility’를 검색하면 시스템 설정의 해당 제어 항목을 열 수 있습니다. 두 단축 동작에는 손쉬운 사용 접근 권한이 필요합니다. ‘시스템 설정 → 개인정보 보호 및 보안 → 손쉬운 사용’에서 Keylight를 허용한 뒤 다시 실행하세요. 설정 값은 직접 선택합니다.
+
 ![Keylight search](docs/images/search.png)
 
 ## 시작하기

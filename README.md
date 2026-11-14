@@ -9,6 +9,8 @@ Type `add` to choose a project, create or append a pending request, or select on
 
 The optional request workflow requires a configured Godspeed Projects service; sending also requires a compatible signed-in ChatGPT desktop app. When enabled in Settings, `clip` opens local text history, and `emp` opens a mouse-confirmed Trash action. See the [guide](docs/guide.md) for limits and permissions.
 
+Search for Default Web Browser or Menu Bar App Visibility to open those controls in System Settings. These shortcuts require Accessibility access; allow Keylight in System Settings → Privacy & Security → Accessibility and run the shortcut again. Choose the setting yourself.
+
 ![Keylight search](docs/images/search.png)
 
 ## Get started
