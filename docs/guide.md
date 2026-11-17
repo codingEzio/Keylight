@@ -149,7 +149,9 @@ App icon: generated with OpenAI image generation and stored as `Assets/Keylight.
 
 Search for Wallpaper or Login Items & Extensions (also searchable as startup) to open that pane directly. Search for Default Web Browser or Menu Bar App Visibility to open the corresponding control in System Settings; choose the setting yourself.
 
-The browser and menu-bar controls require Accessibility access so Keylight can open them. The launcher may prompt once; allow Keylight in System Settings → Privacy & Security → Accessibility, then run the shortcut again. The CLI reports an error when it lacks access. If Keylight cannot locate a control, open it manually in System Settings. Global shortcuts and the other two Settings destinations do not require this access. Availability and control names depend on macOS.
+Search for Accessibility to open the Accessibility page in System Settings. It does not require Accessibility access; choose the setting inside System Settings yourself.
+
+The browser and menu-bar controls require Accessibility access so Keylight can open them. The launcher may prompt once; allow Keylight in System Settings → Privacy & Security → Accessibility, then run the shortcut again. The CLI reports an error when it lacks access. If Keylight cannot locate a control, open it manually in System Settings. Global shortcuts and the other Settings destinations do not require this access. Availability, anchor behavior and control names depend on macOS.
 
 ## Clipboard history
 

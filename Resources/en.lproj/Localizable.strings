@@ -212,3 +212,5 @@
 "Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again." = "Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again.";
 
 "Couldn’t locate the control in System Settings. Please open it manually." = "Couldn’t locate the control in System Settings. Please open it manually.";
+
+"Accessibility" = "Accessibility";

@@ -212,3 +212,5 @@
 "Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again." = "請在系統設定 → 隱私權與安全性 → 輔助使用中允許 Keylight，然後再次執行此捷徑。";
 
 "Couldn’t locate the control in System Settings. Please open it manually." = "無法在系統設定中找到該控制項，請手動開啟。";
+
+"Accessibility" = "輔助使用";
