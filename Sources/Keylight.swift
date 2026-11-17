@@ -103,7 +103,7 @@ struct Entry: Identifiable {
         return Search.ordered(entries + [emptyTrashEntry], query: q, name: { $0.name }, aliases: { entry in
             if entry.id == "keylight:empty-trash" { return ["emp", "empty trash"] }
             return SystemSettings.find(entry.id)?.aliases ?? (entry.isAction ? [] : (aliases[entry.id] ?? []))
-        }, identity: { $0.id }, history: searchHistory)
+        }, identity: { $0.id }, history: searchHistory, priority: { $0.isAction ? 1 : 0 })
     }
     func refresh() {
         refreshVersion += 1

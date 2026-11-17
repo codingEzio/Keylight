@@ -23,12 +23,18 @@ enum SystemSettings {
         let locales = Bundle.preferredLocalizations(from: Array(root.keys), forPreferences: preferredLanguages)
         return Array(Set(locales.compactMap { (root[$0] as? [String: Any])?[key] as? String }.filter { !$0.isEmpty })).sorted()
     }
+    // The Accessibility pane has a stable extension ID; the launcher only
+    // needs to open that page and leaves the setting choice to the user.
+    static let accessibilityID = "com.apple.Accessibility-Settings.extension"
+    static let accessibilityDestinations: [SystemSetting] = [
+        .init(id: accessibilityID, title: "Accessibility", symbol: "figure.arms.open", aliases: ["accessibility settings", "accessibility", "辅助功能", "輔助使用", "无障碍", "無障礙"])
+    ]
     static let destinations: [SystemSetting] = [
         .init(id: "com.apple.Wallpaper-Settings.extension", title: "Wallpaper", symbol: "photo", aliases: ["wallpaper", "desktop background", "桌布", "壁纸"]),
         .init(id: "com.apple.LoginItems-Settings.extension", title: "Login Items & Extensions", symbol: "list.bullet", aliases: ["login items", "startup", "启动项", "登入項目", "登录项"]),
         .init(id: "com.apple.Desktop-Settings.extension?default-web-browser", title: "Default Web Browser", symbol: "globe", aliases: ["default browser", "browser", "default web browser", "默认浏览器", "默认网页浏览器", "預設瀏覽器", "預設網頁瀏覽器"] + localizedAliases(table: URL(fileURLWithPath: "/System/Library/ExtensionKit/Extensions/DesktopSettings.appex/Contents/Resources/Localizable.loctable"), key: "Default web browser")),
         .init(id: "com.apple.ControlCenter-Settings.extension", title: "Menu Bar App Visibility", symbol: "menubar.rectangle", aliases: ["menu bar", "menu bar controls", "menu bar apps", "hide menu bar apps", "菜单栏", "菜单栏应用", "菜单栏控制", "選單列", "選單列控制項目"] + localizedAliases(table: URL(fileURLWithPath: "/System/Library/ExtensionKit/Extensions/ControlCenterSettings.appex/Contents/Resources/Localizable.loctable"), key: "Menu Bar Controls…"))
-    ]
+    ] + accessibilityDestinations
     static func find(_ id: String) -> SystemSetting? { destinations.first { $0.id == id } }
 }
 

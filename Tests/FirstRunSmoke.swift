@@ -31,6 +31,12 @@ import Foundation
         let french = SystemSettings.localizedAliases(table: translations, key: "label", preferredLanguages: ["fr-FR"])
         precondition(japanese == ["ブラウザ"] && french == ["Navigateur"], "System labels must follow the selected locale")
         precondition(SystemSettings.localizedAliases(table: root.appendingPathComponent("missing"), key: "label").isEmpty)
+        precondition(
+            Set(SystemSettings.destinations.map(\.id)).count == SystemSettings.destinations.count,
+            "System Settings IDs must stay unique")
+        precondition(
+            SystemSettings.find(SystemSettings.accessibilityID)?.aliases.contains("accessibility") == true,
+            "The Accessibility page must remain searchable")
         let initial = try CLI.items(config, includeCommands: false, home: home.path)
         precondition(initial.map(\.name).contains("Preview"), "A missing optional folder must not hide system apps")
 

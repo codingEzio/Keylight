@@ -171,7 +171,7 @@ enum CLI {
             }
             if args.first == "search", args.count <= 2 {
                 let q = (args.count == 2 ? args[1] : "").trimmingCharacters(in: .whitespacesAndNewlines); let config = try ConfigStore.read()
-                let results = Search.ordered(try items(config), query: q, name: { $0.name }, aliases: { $0.command ? $0.aliases : (config.aliases[$0.path] ?? []) }, identity: { $0.path }, history: try SearchHistoryStore.read())
+                let results = Search.ordered(try items(config), query: q, name: { $0.name }, aliases: { $0.command ? $0.aliases : (config.aliases[$0.path] ?? []) }, identity: { $0.path }, history: try SearchHistoryStore.read(), priority: { $0.command ? 1 : 0 })
                 for item in results { print("\(item.name)\t\(item.command ? "command" : "app")\t\(item.path)") }; return 0
             }
             if args.count == 2, args[0] == "run" {

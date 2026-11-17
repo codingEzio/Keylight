@@ -96,21 +96,22 @@ enum SearchHistoryStore {
 }
 
 enum Search {
-    static func ordered<T>(_ items: [T], query: String, name: (T) -> String, aliases: (T) -> [String], identity: (T) -> String, history: SearchHistory = SearchHistory()) -> [T] {
+    static func ordered<T>(_ items: [T], query: String, name: (T) -> String, aliases: (T) -> [String], identity: (T) -> String, history: SearchHistory = SearchHistory(), priority: (T) -> Int = { _ in 0 }) -> [T] {
         guard !query.isEmpty else { return items }
         let preference = history.preference(for: query)
         let defaults = ["cal": "/System/Applications/Calendar.app", "clc": "/System/Applications/Calculator.app", "app": "/System/Applications/Apps.app", "emp": "keylight:empty-trash"]
         let preferredDefault = defaults[SearchHistory.normalized(query)]
-        let matched = items.enumerated().compactMap { index, item -> (Int, T, Int, Int)? in
+        let matched = items.enumerated().compactMap { index, item -> (Int, T, Int, Int, Int)? in
             guard let rank = rank(query, name: name(item), aliases: aliases(item)) else { return nil }
             let id = identity(item)
             // A real selection overrides the built-in Calendar default; unmatched items never enter the list.
             let learned = preference[id] ?? (id == preferredDefault ? preference.count : Int.max)
-            return (index, item, learned, rank)
+            return (index, item, learned, rank, priority(item))
         }
         return matched.sorted {
             if $0.2 != $1.2 { return $0.2 < $1.2 }
             if $0.3 != $1.3 { return $0.3 < $1.3 }
+            if $0.4 != $1.4 { return $0.4 < $1.4 }
             return $0.0 < $1.0
         }.map { $0.1 }
     }

@@ -47,6 +47,8 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
     assert "com.apple.Desktop-Settings.extension?default-web-browser" in run("search", "默认浏览器")
     assert "com.apple.ControlCenter-Settings.extension" in run("search", "menu bar apps")
     assert "com.apple.ControlCenter-Settings.extension" in run("search", "菜单栏应用")
+    assert "com.apple.Accessibility-Settings.extension" in run("search", "accessibility")
+    assert "com.apple.Accessibility-Settings.extension" in run("search", "辅助功能")
     before_preview = json.loads(run("config", "show"))
     all_apps = run("apps", "all"); assert "hide\tHidden\t" in all_apps and "show\tAlpha\t" in all_apps
     background = run("apps", "background"); assert "HelperService" in background and "MenuBarTool" not in background
@@ -68,7 +70,7 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
     run("config", "shortcut", "⌘", "Space")
     run("config", "alias", "add", str(apps / "Alpha.app"), "term")
     assert "Alpha\tapp" in run("search", "term")
-    assert run("search", "p").splitlines()[0].startswith("Preview\t")
+    assert run("search", "pre").splitlines()[0].startswith("Preview\t")
     term_results = run("search", "term").splitlines()
     assert term_results[0].startswith("Alpha\t") and any(line.startswith("Mastermind\t") for line in term_results)
     rich_export = root / "with-aliases.json"; run("config", "export", str(rich_export))
