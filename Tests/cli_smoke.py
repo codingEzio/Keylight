@@ -49,6 +49,8 @@ with tempfile.TemporaryDirectory(prefix="keylight-test-") as tmp:
     assert "com.apple.ControlCenter-Settings.extension" in run("search", "菜单栏应用")
     assert "com.apple.Accessibility-Settings.extension" in run("search", "accessibility")
     assert "com.apple.Accessibility-Settings.extension" in run("search", "辅助功能")
+    assert "com.apple.Displays-Settings.extension" in run("search", "Display")
+    assert "com.apple.Displays-Settings.extension" in run("search", "显示器")
     before_preview = json.loads(run("config", "show"))
     all_apps = run("apps", "all"); assert "hide\tHidden\t" in all_apps and "show\tAlpha\t" in all_apps
     background = run("apps", "background"); assert "HelperService" in background and "MenuBarTool" not in background

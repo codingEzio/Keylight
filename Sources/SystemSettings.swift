@@ -30,6 +30,7 @@ enum SystemSettings {
         .init(id: accessibilityID, title: "Accessibility", symbol: "figure.arms.open", aliases: ["accessibility settings", "accessibility", "辅助功能", "輔助使用", "无障碍", "無障礙"])
     ]
     static let destinations: [SystemSetting] = [
+        .init(id: "com.apple.Displays-Settings.extension", title: "Displays", symbol: "display", aliases: ["display", "display settings", "monitor", "monitors", "resolution", "显示器", "显示屏", "顯示器", "螢幕", "解析度"] + localizedAliases(table: URL(fileURLWithPath: "/System/Library/ExtensionKit/Extensions/DisplaysExt.appex/Contents/Resources/Localizable.loctable"), key: "Displays")),
         .init(id: "com.apple.Wallpaper-Settings.extension", title: "Wallpaper", symbol: "photo", aliases: ["wallpaper", "desktop background", "桌布", "壁纸"]),
         .init(id: "com.apple.LoginItems-Settings.extension", title: "Login Items & Extensions", symbol: "list.bullet", aliases: ["login items", "startup", "启动项", "登入項目", "登录项"]),
         .init(id: "com.apple.Desktop-Settings.extension?default-web-browser", title: "Default Web Browser", symbol: "globe", aliases: ["default browser", "browser", "default web browser", "默认浏览器", "默认网页浏览器", "預設瀏覽器", "預設網頁瀏覽器"] + localizedAliases(table: URL(fileURLWithPath: "/System/Library/ExtensionKit/Extensions/DesktopSettings.appex/Contents/Resources/Localizable.loctable"), key: "Default web browser")),

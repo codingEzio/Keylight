@@ -147,7 +147,7 @@ App icon: generated with OpenAI image generation and stored as `Assets/Keylight.
 
 ## System Settings shortcuts
 
-Search for Wallpaper or Login Items & Extensions (also searchable as startup) to open that pane directly. Search for Default Web Browser or Menu Bar App Visibility to open the corresponding control in System Settings; choose the setting yourself.
+Search for Displays, Wallpaper, or Login Items & Extensions (also searchable as startup) to open that pane directly. Search for Default Web Browser or Menu Bar App Visibility to open the corresponding control in System Settings; choose the setting yourself.
 
 Search for Accessibility to open the Accessibility page in System Settings. It does not require Accessibility access; choose the setting inside System Settings yourself.
 

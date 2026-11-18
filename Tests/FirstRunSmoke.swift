@@ -37,6 +37,15 @@ import Foundation
         precondition(
             SystemSettings.find(SystemSettings.accessibilityID)?.aliases.contains("accessibility") == true,
             "The Accessibility page must remain searchable")
+        let displayMatches = Search.ordered(
+            SystemSettings.destinations,
+            query: "Display",
+            name: { $0.name },
+            aliases: { $0.aliases },
+            identity: { $0.id })
+        precondition(
+            displayMatches.first?.id == "com.apple.Displays-Settings.extension",
+            "Display must open the Displays pane")
         let initial = try CLI.items(config, includeCommands: false, home: home.path)
         precondition(initial.map(\.name).contains("Preview"), "A missing optional folder must not hide system apps")
 
