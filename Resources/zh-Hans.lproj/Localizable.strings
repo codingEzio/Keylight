@@ -215,3 +215,6 @@
 "Couldn’t locate the control in System Settings. Please open it manually." = "无法在系统设置中找到该控件，请手动打开。";
 
 "Accessibility" = "辅助功能";
+
+"Open System Settings" = "打开系统设置";
+"Allow Keylight in System Settings → Privacy & Security → System & App Protection Override, then run this shortcut again." = "请在系统设置 → 隐私与安全性 → 系统与 App 保护覆盖中允许 Keylight，然后再次运行此快捷指令。";

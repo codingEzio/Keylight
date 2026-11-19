@@ -215,3 +215,6 @@
 "Couldn’t locate the control in System Settings. Please open it manually." = "Couldn’t locate the control in System Settings. Please open it manually.";
 
 "Accessibility" = "Accessibility";
+
+"Open System Settings" = "Open System Settings";
+"Allow Keylight in System Settings → Privacy & Security → System & App Protection Override, then run this shortcut again." = "Allow Keylight in System Settings → Privacy & Security → System & App Protection Override, then run this shortcut again.";

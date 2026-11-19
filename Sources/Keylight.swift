@@ -260,7 +260,23 @@ struct Entry: Identifiable {
         }
         if let setting = SystemSettings.find(e.id) {
             if SettingsNavigator.needsAccessibility(setting) && !SettingsNavigator.requestAccessIfNeeded() {
-                report(NSLocalizedString("Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again.", comment: ""))
+                let messageKey = if #available(macOS 27, *) {
+                    "Allow Keylight in System Settings → Privacy & Security → System & App Protection Override, then run this shortcut again."
+                } else {
+                    "Allow Keylight in System Settings → Privacy & Security → Accessibility, then run this shortcut again."
+                }
+                let message = NSLocalizedString(messageKey, comment: "")
+                error = message
+                NSApp.activate(ignoringOtherApps: true)
+                let alert = NSAlert()
+                alert.messageText = NSLocalizedString("Command failed", comment: "")
+                alert.informativeText = message
+                alert.addButton(withTitle: NSLocalizedString("Open System Settings", comment: ""))
+                alert.addButton(withTitle: NSLocalizedString("Cancel", comment: ""))
+                if alert.runModal() == .alertFirstButtonReturn {
+                    let url = URL(string: "x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")!
+                    if !NSWorkspace.shared.open(url) { report(NSLocalizedString("Couldn’t open System Settings.", comment: "")) }
+                }
                 return
             }
             guard NSWorkspace.shared.open(setting.url) else { report(NSLocalizedString("Couldn’t open System Settings.", comment: "")); return }
